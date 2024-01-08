@@ -2,6 +2,7 @@ package sshclient
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 
@@ -39,7 +40,8 @@ func UpdateRepository() (error) {
 
 
 	if err != nil {
-		fmt.Println("error ao conectar com o servidor")
+		fmt.Println("error ao conectar com o servidor",err)
+		slog.Error("error ao conectar com o servidor",err)
 		return err
 	}
 
