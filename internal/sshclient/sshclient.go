@@ -28,13 +28,15 @@ import (
 func UpdateRepository() (error) {
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
+	client,err := goph.New("root", os.Getenv("SSH_HOST"), auth)
+/* 
 	client, err := goph.NewConn(&goph.Config{
 		User:     "root",
 		Addr:    os.Getenv("SSH_HOST"),
 		Port:     22,
 		Auth:     auth,
 		///Callback: verifyHost,
-	})
+	}) */
 
 
 	if err != nil {
