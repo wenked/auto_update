@@ -3,14 +3,12 @@ package sshclient
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 
 	"github.com/melbahja/goph"
-	"golang.org/x/crypto/ssh"
 )
 
-func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
+/* func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 
 	hostFound, err := goph.CheckKnownHost(host, remote, key, "")
 
@@ -25,7 +23,7 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 
 
 	return goph.AddKnownHost(host, remote, key, "")
-}
+} */
 
 func UpdateRepository() (error) {
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
@@ -35,7 +33,7 @@ func UpdateRepository() (error) {
 		Addr:    os.Getenv("SSH_HOST"),
 		Port:     22,
 		Auth:     auth,
-		Callback: verifyHost,
+		///Callback: verifyHost,
 	})
 
 
