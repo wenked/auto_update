@@ -6,7 +6,7 @@ all: build
 build:
 	@echo "Building..."
 	@go build -o main cmd/api/main.go
-
+	@ls -la
 # Run the application
 run:
 	@go run cmd/api/main.go

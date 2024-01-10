@@ -1,0 +1,10 @@
+version: '3.7'
+services:
+ app:
+  build:
+   context: . # Use an image built from the specified dockerfile in the current directory.
+   dockerfile: Dockerfile
+  ports:
+   - '${PORT}:${PORT}'
+  volumes:
+   - .:/app
