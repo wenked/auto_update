@@ -20,7 +20,7 @@ COPY . .
 # Create .ssh directory and known_hosts file
 RUN mkdir -p /root/.ssh && touch /root/.ssh/known_hosts
 # Build the Go app
-RUN go build -o /main ./cmd/api/main.go
+RUN make build
 
 
 # Command to run the executable
