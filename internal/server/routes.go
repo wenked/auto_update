@@ -2,9 +2,15 @@ package server
 
 import (
 	"auto-update/internal/sshclient"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -51,6 +57,14 @@ type PullRequest struct {
     Base     Base     `json:"base"`
 }
 
+func checkMAC(message []byte, messageMAC, key string) bool {
+    mac := hmac.New(sha256.New, []byte(key))
+    mac.Write(message)
+    expectedMAC := mac.Sum(nil)
+    return hmac.Equal([]byte(messageMAC), []byte(hex.EncodeToString(expectedMAC)))
+}
+
+
 
 
 
@@ -67,6 +81,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 }
 
 func (s *Server) GithubWebhookHandler(c echo.Context) error {
+	body, err := io.ReadAll(c.Request().Body)
+	fmt.Println("body", string(body))
+	if err != nil {
+		slog.Error("Error reading body")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error reading body",
+		})
+	}
+
 
 	for name, headers := range c.Request().Header {
         for _, h := range headers {
@@ -74,9 +97,16 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
         }
     }
 	
-	hashSecret := c.Request().Header.Get("X-Hub-Signature-256")
+	mySecret := os.Getenv("SECRET_KEY")
+	hashSecret := strings.Split(c.Request().Header.Get("X-Hub-Signature-256"), "=")[1]
 
-	fmt.Println("hashSecret", hashSecret)
+	if !checkMAC(body, hashSecret, mySecret) {
+		slog.Error("Invalid secret")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "invalid secret",
+		})
+    }
+
 	webhook := new(GithubWebhook)
     if err := c.Bind(webhook); err != nil {
         return err
