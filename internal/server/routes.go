@@ -68,6 +68,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
+	for name, headers := range c.Request().Header {
+        for _, h := range headers {
+            fmt.Printf("%v: %v\n", name, h)
+        }
+    }
+	
+	hashSecret := c.Request().Header.Get("X-Hub-Signature-256")
+
+	fmt.Println("hashSecret", hashSecret)
 	webhook := new(GithubWebhook)
     if err := c.Bind(webhook); err != nil {
         return err
