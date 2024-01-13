@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -61,9 +62,9 @@ func checkMAC(message []byte, messageMAC, key string) bool {
     mac := hmac.New(sha256.New, []byte(key))
     mac.Write(message)
     expectedMAC := mac.Sum(nil)
+	
     return hmac.Equal([]byte(messageMAC), []byte(hex.EncodeToString(expectedMAC)))
 }
-
 
 
 
@@ -83,6 +84,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 func (s *Server) GithubWebhookHandler(c echo.Context) error {
 	body, err := io.ReadAll(c.Request().Body)
 	fmt.Println("body", string(body))
+
 	if err != nil {
 		slog.Error("Error reading body")
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -100,17 +102,26 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 	mySecret := os.Getenv("SECRET_KEY")
 	hashSecret := strings.Split(c.Request().Header.Get("X-Hub-Signature-256"), "=")[1]
 
-	if !checkMAC(body, hashSecret, mySecret) {
+	
+
+	if (!checkMAC(body,hashSecret, mySecret)) {
 		slog.Error("Invalid secret")
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": "invalid secret",
 		})
     }
 
+	fmt.Println("secret valid")
+
+
 	webhook := new(GithubWebhook)
-    if err := c.Bind(webhook); err != nil {
-        return err
+	if err := json.Unmarshal(body, webhook); err != nil {
+        slog.Error("Error unmarshalling body")
+        return c.JSON(http.StatusInternalServerError, map[string]string{
+            "message": "error unmarshalling body",
+        })
     }
+
 	
 	pushDirectlyToMaster := webhook.Ref == "refs/heads/master"
 	pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
