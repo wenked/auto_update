@@ -1,7 +1,6 @@
 package server
 
 import (
-	"auto-update/internal/sshclient"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -58,6 +57,7 @@ type PullRequest struct {
     Base     Base     `json:"base"`
 }
 
+
 func checkMAC(message []byte, messageMAC, key string) bool {
     mac := hmac.New(sha256.New, []byte(key))
     mac.Write(message)
@@ -109,7 +109,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": "invalid secret",
 		})
-    }
+    } 
 
 	fmt.Println("secret valid")
 
@@ -126,13 +126,16 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 	pushDirectlyToMaster := webhook.Ref == "refs/heads/master"
 	pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
 
+	fmt.Println("Queue size:", s.queue.Size())
+
 	if(pushDirectlyToMaster){
 		fmt.Println("pusher name", webhook.Pusher.Name)
 		fmt.Println("pusher email", webhook.Pusher.Email)
 		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
-		err := sshclient.UpdateRepository()
+		s.queue.Enqueue(webhook.Pusher.Name + " " + webhook.Pusher.Email + " " + webhook.HeadCommit.Id + " " + webhook.HeadCommit.Message)
+	
 
 		if err != nil {
 			slog.Error("Error update repository")
@@ -155,18 +158,18 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
-		err := sshclient.UpdateRepository()
+		s.queue.Enqueue(webhook.PullRequest.Head.Repo.FullName + " " + webhook.PullRequest.Head.Ref)
 
-		if err != nil {
+	/* 	if err != nil {
 			slog.Error("Error update repository")
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"message": "error update repository",
 			})
-		}
+		} */
 
-		slog.Info("Repository updated")
+		slog.Info("Repository added in queue")
 		return c.JSON(http.StatusOK, map[string]string{
-			"message": "update repository",
+			"message": "update added in queue",
 		})
 	}
 

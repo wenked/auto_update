@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"auto-update/internal/database"
+	"auto-update/internal/queue"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -15,13 +16,17 @@ import (
 type Server struct {
 	port int
 	db   database.Service
+	queue *queue.UpdateQueue
 }
 
-func NewServer() *http.Server {
+func NewServer(queue *queue.UpdateQueue) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
+
+	
 	NewServer := &Server{
 		port: port,
 		db:   database.New(),
+		queue: queue,
 	}
 
 	// Declare Server config

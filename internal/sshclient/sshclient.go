@@ -27,7 +27,9 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	return goph.AddKnownHost(host, remote, key, "")
 }
 
-func UpdateRepository() (error) {
+func UpdateRepository(message string) (error) {
+
+	fmt.Println("Atualizando repositório no servidor message: ", message)
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
 	client, err := goph.NewConn(&goph.Config{
