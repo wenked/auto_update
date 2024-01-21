@@ -24,7 +24,8 @@ func main() {
 	server := server.NewServer(queue)
 	logger.InitLogger()
 	
-    slog.Info("starting api on port 8080")
+	
+    slog.Info("starting api on port", os.Getenv("PORT"), "...")
 	// Start the server concurrently
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -32,19 +33,18 @@ func main() {
 		}
 	   }()
 	  
-	   // Start the email queue concurrently, with 10 worker
-	   for i := 0; i < 1; i++ {
+	 
 		go queue.Work()
-	   }
+	   
 	  
-	   // Catch the exit signal
+
 	   <-osSignal
 	  
 	   fmt.Println("Terminating server")
 	   server.Shutdown(context.Background())
 	  
-	   fmt.Println("Terminating email queue")
-	   // Wait untuk there is no active job in the queue
+	   fmt.Println("Terminating update queue")
+
 	   for queue.Size() > 0 {
 		time.Sleep(time.Millisecond * 500)
 	   }

@@ -9,8 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"strings"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -76,9 +75,39 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
+	e.GET("/updates", s.GetUpdatesHandler)
 	e.POST("/github-webhook", s.GithubWebhookHandler)
+	
 
 	return e
+}
+
+func (s *Server) GetUpdatesHandler(c echo.Context) error{
+	limit, err := strconv.Atoi(c.QueryParam("limit"))
+
+	if err != nil {
+		limit = 10
+	}
+	page, err := strconv.Atoi(c.QueryParam("page"))
+	var offset int
+
+	if err != nil {
+		offset = 0
+	}
+
+	offset = (page - 1) * limit	
+
+	updates, err := s.db.GetUpdates(limit,offset)
+
+	if err != nil {
+		slog.Error("Error getting updates")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error getting updates",
+		})
+	}
+
+	return c.JSON(http.StatusOK, updates)
+
 }
 
 func (s *Server) GithubWebhookHandler(c echo.Context) error {
@@ -93,7 +122,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 	}
 
 
-	for name, headers := range c.Request().Header {
+/* 	for name, headers := range c.Request().Header {
         for _, h := range headers {
             fmt.Printf("%v: %v\n", name, h)
         }
@@ -109,7 +138,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": "invalid secret",
 		})
-    } 
+    }  */
 
 	fmt.Println("secret valid")
 
@@ -134,7 +163,17 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
-		s.queue.Enqueue(webhook.Pusher.Name + " " + webhook.Pusher.Email + " " + webhook.HeadCommit.Id + " " + webhook.HeadCommit.Message)
+		
+		id,err := s.db.CreateUpdate(webhook.Pusher.Name, "master", "pending", "in queue")
+
+		if(err != nil){
+			slog.Error("Error creating update in database")
+			/* return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			}) */
+		}
+
+		s.queue.Enqueue(id)
 	
 
 		if err != nil {
@@ -158,7 +197,15 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
-		s.queue.Enqueue(webhook.PullRequest.Head.Repo.FullName + " " + webhook.PullRequest.Head.Ref)
+		id,err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Repo.FullName, "pending", "in queue")
+
+		if(err != nil){
+			slog.Error("Error creating update in database")
+			/* return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			}) */
+		}
+		s.queue.Enqueue(id)
 
 	/* 	if err != nil {
 			slog.Error("Error update repository")

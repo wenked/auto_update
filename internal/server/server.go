@@ -18,6 +18,8 @@ type Server struct {
 	db   database.Service
 	queue *queue.UpdateQueue
 }
+	
+
 
 func NewServer(queue *queue.UpdateQueue) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
@@ -25,7 +27,7 @@ func NewServer(queue *queue.UpdateQueue) *http.Server {
 	
 	NewServer := &Server{
 		port: port,
-		db:   database.New(),
+		db:   database.GetService(),
 		queue: queue,
 	}
 

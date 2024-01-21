@@ -1,6 +1,7 @@
 package sshclient
 
 import (
+	"auto-update/internal/database"
 	"fmt"
 	"log/slog"
 	"net"
@@ -27,9 +28,9 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	return goph.AddKnownHost(host, remote, key, "")
 }
 
-func UpdateRepository(message string) (error) {
-
-	fmt.Println("Atualizando repositório no servidor message: ", message)
+func UpdateRepository(id int64) (error) {
+	fmt.Println("testee2")
+	fmt.Println("Atualizando repositório no servidor update com id: ", id)
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
 	client, err := goph.NewConn(&goph.Config{
@@ -52,15 +53,39 @@ func UpdateRepository(message string) (error) {
 
 	fmt.Println("Conectado com sucesso ao servidor")
 
+	err = database.GetService().UpdateStatusAndMessage(id,"running","Atualizando repositório no servidor update")
+
+	if(err != nil){
+		fmt.Println("error ao atualizar status do update",err)
+		slog.Error("error ao atualizar status do update",err)
+	}
+	
 	out, err := client.Run("cd /topzap-dev/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use && git pull && npm install && npm run build")
 	// out, err := client.Run("cd " + directory + " && git pull &&  docker-compose up -d --force-recreate --build")
 
-	fmt.Println(string(out))
+	message := string(out)
+	fmt.Println(message)
 
 
 	if err != nil {
+		err = database.GetService().UpdateStatusAndMessage(id,"error",message)
+
+		if(err != nil){
+			fmt.Println("error ao atualizar status do update",err)
+			slog.Error("error ao atualizar status do update",err)
+		}
+
+
 		fmt.Println("error ao executar comando de Atualizar",err)
 		return err
+	}
+
+
+	err = database.GetService().UpdateStatusAndMessage(id,"success",message)
+
+	if(err != nil){
+		fmt.Println("error ao atualizar status do update",err)
+		slog.Error("error ao atualizar status do update",err)
 	}
 
 	return nil
