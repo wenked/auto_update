@@ -115,6 +115,7 @@ func (s * service) UpdateStatusAndMessage(id int64, status string,message string
 
 	_, err := s.db.ExecContext(ctx, `UPDATE updates SET status = ?,message = ? WHERE id = ?`, status,message,id)
 	if err != nil {
+		fmt.Println("error in update status and message",err)
 		return err
 	}
 
