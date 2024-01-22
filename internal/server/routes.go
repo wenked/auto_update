@@ -167,6 +167,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		id,err := s.db.CreateUpdate(webhook.Pusher.Name, "master", "pending", "in queue")
 
 		if(err != nil){
+			fmt.Println("error creating update in database",err)
 			slog.Error("Error creating update in database")
 			/* return c.JSON(http.StatusInternalServerError, map[string]string{
 				"message": "error creating update in database",
@@ -197,7 +198,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
-		id,err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Repo.FullName, "pending", "in queue")
+		id,err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
 		if(err != nil){
 			slog.Error("Error creating update in database")
