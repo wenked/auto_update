@@ -153,7 +153,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 	
 	pushDirectlyToMaster := webhook.Ref == "refs/heads/master"
-	pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
+	// pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
 
 	fmt.Println("Queue size:", s.queue.Size())
 
@@ -190,7 +190,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		})
 	}
 
-	if(pullRequestMerged){
+/* 	if(pullRequestMerged){
 		fmt.Println("pull merged", webhook.PullRequest.Merged)
 		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
 		fmt.Println("pull merged by", webhook.PullRequest.MergedBy.Login)
@@ -201,27 +201,19 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		id,err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
 		if(err != nil){
-			fmt.Println("error creating update in database",err)
 			slog.Error("Error creating update in database")
-			/* return c.JSON(http.StatusInternalServerError, map[string]string{
-				"message": "error creating update in database",
-			}) */
+			
 		}
 		s.queue.Enqueue(id)
 
-	/* 	if err != nil {
-			slog.Error("Error update repository")
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"message": "error update repository",
-			})
-		} */
+	
 
 		slog.Info("Repository added in queue")
 		return c.JSON(http.StatusOK, map[string]string{
 			"message": "update added in queue",
 		})
 	}
-
+ */
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "pull request not merged",
 	})
