@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -152,8 +153,8 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
     }
 
 	
-	pushDirectlyToMaster := webhook.Ref == "refs/heads/master"
-	// pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
+	pushDirectlyToMaster := webhook.Ref == "refs/heads/master" && !strings.Contains(webhook.HeadCommit.Message, "Merge pull request #")
+	pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
 
 	fmt.Println("Queue size:", s.queue.Size())
 
@@ -190,7 +191,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		})
 	}
 
-/* 	if(pullRequestMerged){
+ 	if(pullRequestMerged){
 		fmt.Println("pull merged", webhook.PullRequest.Merged)
 		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
 		fmt.Println("pull merged by", webhook.PullRequest.MergedBy.Login)
@@ -213,7 +214,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 			"message": "update added in queue",
 		})
 	}
- */
+ 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "pull request not merged",
 	})
