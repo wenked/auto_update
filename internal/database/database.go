@@ -78,7 +78,7 @@ func GetService() Service {
 }
 
 func (s *service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	err := s.db.PingContext(ctx)
@@ -92,7 +92,7 @@ func (s *service) Health() map[string]string {
 }
 
 func (s *service) CreateUpdate(pusher_name string, branch string, status string, message string) (int64,error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	result, err := s.db.ExecContext(ctx, `INSERT INTO updates (pusher_name, branch, status, message) VALUES (?, ?, ?, ?)`, pusher_name, branch, status, message)
@@ -110,7 +110,7 @@ func (s *service) CreateUpdate(pusher_name string, branch string, status string,
 }
 
 func (s * service) UpdateStatusAndMessage(id int64, status string,message string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	_, err := s.db.ExecContext(ctx, `UPDATE updates SET status = ?,message = ? WHERE id = ?`, status,message,id)
@@ -125,7 +125,7 @@ func (s * service) UpdateStatusAndMessage(id int64, status string,message string
 
 func (s *service) GetUpdates(limit int ,offset int) ([]Update, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	
 	
