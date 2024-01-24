@@ -3,12 +3,14 @@
 # Build the application
 all: build
 
+
 build:
 	@echo "Building..."
 	@go build -o /main cmd/api/main.go
 	@ls -la
 # Run the application
 run:
+	@templ generate
 	@go run cmd/api/main.go
 
 # Create DB container
@@ -57,3 +59,15 @@ watch:
 	fi
 
 .PHONY: all build run test clean
+start: build
+	   air
+
+## css: build tailwindcss
+.PHONY: css
+css:
+	./tailwindcss -i css/input.css -o css/output.css --minify
+
+## css-watch: watch build tailwindcss
+.PHONY: css-watch
+css-watch:
+	./tailwindcss -i css/input.css -o css/output.css --watch

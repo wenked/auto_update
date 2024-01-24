@@ -1,6 +1,8 @@
 package server
 
 import (
+	"auto-update/utils"
+	"auto-update/views"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -74,13 +76,31 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	e.Static("/static", "static")
+	e.Static("/css", "css")
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
 	e.GET("/updates", s.GetUpdatesHandler)
 	e.POST("/github-webhook", s.GithubWebhookHandler)
+	e.GET("/home", s.HomeHandler)
 	
 
 	return e
+}
+
+func (s *Server) HomeHandler(c echo.Context) error {
+
+	rows, err := s.db.GetUpdates(100,0)
+
+	if err != nil {
+		slog.Error("Error getting updates")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error getting updates",
+		})
+	}
+
+
+	return utils.Render(c,views.Index(rows))
 }
 
 func (s *Server) GetUpdatesHandler(c echo.Context) error{

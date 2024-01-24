@@ -1,0 +1,33 @@
+package views
+
+import "auto-update/internal/database"
+import "strconv"
+
+templ UpdateTable(rows []database.Update) {
+	<table class="min-w-full h-full divide-y divide-gray-200">
+		<thead class="bg-gray-50">
+			<tr>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pusher Name</th>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+				<th class="w-32 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+				<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated At</th>
+			</tr>
+		</thead>
+		<tbody class="bg-white divide-y divide-gray-200">
+			for _, row := range rows {
+				<tr>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ strconv.FormatInt(row.ID, 10) }</td>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ row.PusherName }</td>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ row.Branch }</td>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ row.Status }</td>
+					<td class="w-32 overflow-hidden overflow-ellipsis px-6 py-4 text-sm text-gray-500">{ row.Message }</td>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ row.CreatedAt.Format("2006-01-02 15:04:05") }</td>
+					<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ row.UpdatedAt.Format("2006-01-02 15:04:05") }</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
