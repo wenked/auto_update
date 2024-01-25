@@ -742,8 +742,20 @@ select {
   width: 3rem;
 }
 
+.w-96 {
+  width: 24rem;
+}
+
 .min-w-full {
   min-width: 100%;
+}
+
+.table-auto {
+  table-layout: auto;
+}
+
+.table-fixed {
+  table-layout: fixed;
 }
 
 .items-center {

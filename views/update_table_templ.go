@@ -25,7 +25,7 @@ func UpdateTable(rows []database.Update) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<table class=\"w-full h-full divide-y divide-gray-200 overflow-auto\"><thead class=\"bg-black\"><tr><th class=\"px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<table class=\"w-full h-full divide-y divide-gray-200 overflow-auto table-fixed\"><thead class=\"bg-black\"><tr><th class=\"px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -52,7 +52,7 @@ func UpdateTable(rows []database.Update) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</th><th class=\"w-12 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</th><th class=\"w-96 px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -123,7 +123,7 @@ func UpdateTable(rows []database.Update) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</td><td class=\"w-12 overflow-hidden overflow-ellipsis px-6 py-4 text-sm text-white\"><span>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</td><td class=\"w-96 overflow-hidden overflow-ellipsis px-6 py-4 text-sm text-white\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
