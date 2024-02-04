@@ -52,7 +52,7 @@ func UpdateRepository(id int64) error {
 	fmt.Println("Conectado com sucesso ao servidor")
 
 	err = database.GetService().UpdateStatusAndMessage(id, "running", "Atualizando repositório no servidor update")
-	sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
+	// sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
 
 	if err != nil {
 		fmt.Println("error ao atualizar status do update", err)
@@ -68,7 +68,7 @@ func UpdateRepository(id int64) error {
 	if err != nil {
 		err = database.GetService().UpdateStatusAndMessage(id, "error", message)
 
-		sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
+		// sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
 		if err != nil {
 			fmt.Println("error ao atualizar status do update", err)
 			slog.Error("error ao atualizar status do update", err)

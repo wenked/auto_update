@@ -194,7 +194,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
 		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "master", "pending", "in queue")
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			fmt.Println("error creating update in database", err)
