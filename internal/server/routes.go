@@ -99,7 +99,9 @@ func (s *Server) sseHandler(c echo.Context) error {
 	s.hub.AddClient <- client
 	client.RunSSE()
 
-	return nil
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "sse connection established",
+	})
 }
 
 func (s *Server) HomeHandler(c echo.Context) error {
