@@ -67,8 +67,10 @@ func UpdateRepository(id int64) error {
 	message := string(out)
 	fmt.Println(message)
 
+	slicedMessage := message[len(message)-300:]
+
 	if err != nil {
-		err = database.GetService().UpdateStatusAndMessage(id, "error", message)
+		err = database.GetService().UpdateStatusAndMessage(id, "error", slicedMessage)
 
 		sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
 		if err != nil {
@@ -80,7 +82,7 @@ func UpdateRepository(id int64) error {
 		return err
 	}
 
-	err = database.GetService().UpdateStatusAndMessage(id, "success", message)
+	err = database.GetService().UpdateStatusAndMessage(id, "success", slicedMessage)
 
 	if err != nil {
 		fmt.Println("error ao atualizar status do update", err)

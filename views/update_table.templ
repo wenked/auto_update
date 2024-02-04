@@ -22,7 +22,7 @@ templ UpdateTable(rows []database.Update) {
 					<td class="px-6 py-4 whitespace-nowrap text-sm text-white">{ row.PusherName }</td>
 					<td class="px-6 py-4 whitespace-nowrap text-sm text-white">{ row.Branch }</td>
 					<td class="px-6 py-4 whitespace-nowrap text-sm text-white">{ row.Status }</td>
-					<td class="w-96 max-h-10 overflow-hidden overflow-ellipsis whitespace-nowrap px-6 py-4 text-sm text-white"><span>{ row.Message }</span></td>
+					<td class="w-96 overflow-hidden overflow-ellipsis px-6 py-4 text-sm text-white"><span>{ row.Message }</span></td>
 					<td class="px-6 py-4 whitespace-nowrap text-sm text-white">{ row.CreatedAt.Format("2006-01-02 15:04:05") }</td>
 					<td class="px-6 py-4 whitespace-nowrap text-sm text-white">{ row.UpdatedAt.Format("2006-01-02 15:04:05") }</td>
 				</tr>
