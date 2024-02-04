@@ -10,6 +10,8 @@ require (
 	golang.org/x/crypto v0.17.0
 )
 
+require github.com/google/uuid v1.6.0 // indirect
+
 require (
 	github.com/a-h/templ v0.2.513
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230512164433-5d1fd1a340c9 // indirect

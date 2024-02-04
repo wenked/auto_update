@@ -9,11 +9,12 @@ templ Index(rows []database.Update) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<meta http-equiv="X-UA-Compatible" content="ie=edge"/>
 			<script src="https://unpkg.com/htmx.org@1.9.2"></script>
+			<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
 			<link href="/css/output.css" rel="stylesheet"/>
 			<title>AutoUpdate</title>
 		</head>
-		<body class="bg-black">
-			<main>
+		<body class="bg-black" hx-ext="sse" sse-connect="/sse">
+			<main hx-get="/home" hx-trigger="sse:update">
 				<div class="md:container md:mx-auto">
 					@UpdateTable(rows)
 				</div>
