@@ -37,7 +37,7 @@ func (c *Client) RunSSE() {
 		select {
 		case msg := <-c.MessageChan:
 			fmt.Println("Sending message to client: ", msg)
-
+			fmt.Println("Client ID: ", c.Id)
 			_, err := c.writer.Write([]byte("event: update\n" + "data: " + msg + "\n\n"))
 
 			if err != nil {

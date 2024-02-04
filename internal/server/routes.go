@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -154,23 +155,21 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		})
 	}
 
-	/* 	for name, headers := range c.Request().Header {
-	        for _, h := range headers {
-	            fmt.Printf("%v: %v\n", name, h)
-	        }
-	    }
+	for name, headers := range c.Request().Header {
+		for _, h := range headers {
+			fmt.Printf("%v: %v\n", name, h)
+		}
+	}
 
-		mySecret := os.Getenv("SECRET_KEY")
-		hashSecret := strings.Split(c.Request().Header.Get("X-Hub-Signature-256"), "=")[1]
+	mySecret := os.Getenv("SECRET_KEY")
+	hashSecret := strings.Split(c.Request().Header.Get("X-Hub-Signature-256"), "=")[1]
 
-
-
-		if (!checkMAC(body,hashSecret, mySecret)) {
-			slog.Error("Invalid secret")
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"message": "invalid secret",
-			})
-	    }  */
+	if !checkMAC(body, hashSecret, mySecret) {
+		slog.Error("Invalid secret")
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "invalid secret",
+		})
+	}
 
 	fmt.Println("secret valid")
 
@@ -194,7 +193,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
 		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "master", "pending", "in queue")
-		// s.hub.Broadcast <- "update"
+		s.hub.Broadcast <- "update"
 
 		if err != nil {
 			fmt.Println("error creating update in database", err)
@@ -227,12 +226,14 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
+		s.hub.Broadcast <- "update"
 		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
 		if err != nil {
 			slog.Error("Error creating update in database")
 
 		}
+
 		s.queue.Enqueue(id)
 
 		slog.Info("Repository added in queue")

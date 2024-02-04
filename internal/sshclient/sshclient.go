@@ -52,12 +52,14 @@ func UpdateRepository(id int64) error {
 	fmt.Println("Conectado com sucesso ao servidor")
 
 	err = database.GetService().UpdateStatusAndMessage(id, "running", "Atualizando repositório no servidor update")
-	// sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
+	sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
 
 	if err != nil {
 		fmt.Println("error ao atualizar status do update", err)
 		slog.Error("error ao atualizar status do update", err)
 	}
+
+	// out, err := client.Run("cd /topzap-dev/web-greenchat && ls -a")
 
 	out, err := client.Run("cd /topzap-dev/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use && git pull && npm install && npm run build")
 	// out, err := client.Run("cd " + directory + " && git pull &&  docker-compose up -d --force-recreate --build")
@@ -68,7 +70,7 @@ func UpdateRepository(id int64) error {
 	if err != nil {
 		err = database.GetService().UpdateStatusAndMessage(id, "error", message)
 
-		// sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
+		sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
 		if err != nil {
 			fmt.Println("error ao atualizar status do update", err)
 			slog.Error("error ao atualizar status do update", err)
@@ -79,12 +81,12 @@ func UpdateRepository(id int64) error {
 	}
 
 	err = database.GetService().UpdateStatusAndMessage(id, "success", message)
-	sse.GetHub().Broadcast <- "Atualização realizada com sucesso"
 
 	if err != nil {
 		fmt.Println("error ao atualizar status do update", err)
 		slog.Error("error ao atualizar status do update", err)
 	}
 
+	sse.GetHub().Broadcast <- "Atualização realizada com sucesso"
 	return nil
 }
