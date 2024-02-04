@@ -123,14 +123,14 @@ func UpdateTable(rows []database.Update) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</td><td class=\"w-96 overflow-hidden overflow-ellipsis px-6 py-4 text-sm text-white\"><span>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</td><td class=\"w-96 max-h-10 overflow-hidden overflow-ellipsis whitespace-nowrap px-6 py-4 text-sm text-white\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(row.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/update_table.templ`, Line: 24, Col: 104}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/update_table.templ`, Line: 24, Col: 131}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
