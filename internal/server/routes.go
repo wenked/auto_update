@@ -198,7 +198,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
 		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "dev", "pending", "in queue")
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
@@ -217,7 +217,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
 		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "staging", "pending", "in queue")
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
@@ -234,7 +234,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
 		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "master", "pending", "in queue")
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
@@ -255,7 +255,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
@@ -277,7 +277,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
@@ -298,7 +298,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
-		s.hub.Broadcast <- "update"
+		// s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
