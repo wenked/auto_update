@@ -52,7 +52,7 @@ func Index(rows []database.Update) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</title></head><body class=\"bg-black\" hx-ext=\"sse\" sse-connect=\"/sse\"><main hx-get=\"/home\" hx-trigger=\"sse:update\"><div class=\"md:container md:mx-auto\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</title></head><body class=\"bg-black\" hx-get=\"/home\" hx-trigger=\"every 10s\"><main><div class=\"md:container md:mx-auto\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
