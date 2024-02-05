@@ -181,12 +181,53 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		})
 	}
 
+	pushDirectlyToDevelop := webhook.Ref == "refs/heads/dev" && !strings.Contains(webhook.HeadCommit.Message, "Merge pull request #")
+	pushDirectlyToStaging := webhook.Ref == "refs/heads/staging" && !strings.Contains(webhook.HeadCommit.Message, "Merge pull request #")
 	pushDirectlyToMaster := webhook.Ref == "refs/heads/master" && !strings.Contains(webhook.HeadCommit.Message, "Merge pull request #")
 	pullRequestMerged := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "master"
+	pullRequestMergedToStaging := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "staging"
+	pullRequestMergedToDevelop := webhook.Action == "closed" && webhook.PullRequest.Merged && webhook.PullRequest.Base.Ref == "dev"
 
 	fmt.Println("Queue size:", s.queue.Size())
 
-	if pushDirectlyToMaster {
+	switch {
+	case pushDirectlyToDevelop:
+		fmt.Println("pusher name", webhook.Pusher.Name)
+		fmt.Println("pusher email", webhook.Pusher.Email)
+		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
+		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
+
+		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "dev", "pending", "in queue")
+		s.hub.Broadcast <- "update"
+
+		if err != nil {
+			slog.Error("Error creating update in database")
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			})
+
+		}
+
+		s.queue.Enqueue(id)
+
+	case pushDirectlyToStaging:
+		fmt.Println("pusher name", webhook.Pusher.Name)
+		fmt.Println("pusher email", webhook.Pusher.Email)
+		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
+		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
+
+		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "staging", "pending", "in queue")
+		s.hub.Broadcast <- "update"
+
+		if err != nil {
+			slog.Error("Error creating update in database")
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			})
+		}
+
+		s.queue.Enqueue(id)
+	case pushDirectlyToMaster:
 		fmt.Println("pusher name", webhook.Pusher.Name)
 		fmt.Println("pusher email", webhook.Pusher.Email)
 		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
@@ -196,29 +237,15 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		s.hub.Broadcast <- "update"
 
 		if err != nil {
-			fmt.Println("error creating update in database", err)
 			slog.Error("Error creating update in database")
-			/* return c.JSON(http.StatusInternalServerError, map[string]string{
+			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"message": "error creating update in database",
-			}) */
+			})
 		}
 
 		s.queue.Enqueue(id)
 
-		if err != nil {
-			slog.Error("Error update repository")
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"message": "error update repository",
-			})
-		}
-
-		slog.Info("Repository updated")
-		return c.JSON(http.StatusOK, map[string]string{
-			"message": "update repository",
-		})
-	}
-
-	if pullRequestMerged {
+	case pullRequestMerged:
 		fmt.Println("pull merged", webhook.PullRequest.Merged)
 		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
 		fmt.Println("pull merged by", webhook.PullRequest.MergedBy.Login)
@@ -226,25 +253,69 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
-		s.hub.Broadcast <- "update"
 		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
+
+		s.hub.Broadcast <- "update"
 
 		if err != nil {
 			slog.Error("Error creating update in database")
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			})
 
 		}
 
 		s.queue.Enqueue(id)
 
-		slog.Info("Repository added in queue")
-		return c.JSON(http.StatusOK, map[string]string{
-			"message": "update added in queue",
-		})
+	case pullRequestMergedToStaging:
+		fmt.Println("pull merged", webhook.PullRequest.Merged)
+		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
+		fmt.Println("pull merged by", webhook.PullRequest.MergedBy.Login)
+		fmt.Println("pull head ref", webhook.PullRequest.Head.Ref)
+		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
+		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
+
+		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
+
+		s.hub.Broadcast <- "update"
+
+		if err != nil {
+			slog.Error("Error creating update in database")
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			})
+
+		}
+
+		s.queue.Enqueue(id)
+	case pullRequestMergedToDevelop:
+		fmt.Println("pull merged", webhook.PullRequest.Merged)
+		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
+		fmt.Println("pull merged by", webhook.PullRequest.MergedBy.Login)
+		fmt.Println("pull head ref", webhook.PullRequest.Head.Ref)
+		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
+		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
+
+		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
+
+		s.hub.Broadcast <- "update"
+
+		if err != nil {
+			slog.Error("Error creating update in database")
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"message": "error creating update in database",
+			})
+
+		}
+
+		s.queue.Enqueue(id)
 	}
 
+	slog.Info("Repository added in queue")
 	return c.JSON(http.StatusOK, map[string]string{
-		"message": "pull request not merged",
+		"message": "ok",
 	})
+
 }
 
 func (s *Server) HelloWorldHandler(c echo.Context) error {
