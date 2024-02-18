@@ -1,7 +1,9 @@
 package server
 
 import (
+	"auto-update/internal/database"
 	"auto-update/internal/sse"
+	"auto-update/internal/sshclient"
 	"auto-update/utils"
 	"auto-update/views"
 	"crypto/hmac"
@@ -19,6 +21,13 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
+
+type ServerInfo struct {
+	Host        string `json:"host"`
+	Password    string `json:"password"`
+	Script      string `json:"script"`
+	Pipeline_id int64  `json:"pipeline_id"`
+}
 
 type GithubWebhook struct {
 	Ref         string      `json:"ref"`
@@ -61,6 +70,23 @@ type PullRequest struct {
 	Base     Base     `json:"base"`
 }
 
+func checkSecretKeyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		mySecret := os.Getenv("SECRET_KEY")
+
+		secreteKeyHeader := c.Request().Header.Get("secretkey")
+
+		if secreteKeyHeader != mySecret {
+			return c.JSON(http.StatusUnauthorized, map[string]string{
+				"message": "unauthorized",
+			})
+		}
+
+		return next(c)
+
+	}
+}
+
 func checkMAC(message []byte, messageMAC, key string) bool {
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write(message)
@@ -83,6 +109,17 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.POST("/github-webhook", s.GithubWebhookHandler)
 	e.GET("/home", s.HomeHandler)
 	e.POST("/test_sse", s.TestSSEHandler)
+
+	e.Use(checkSecretKeyMiddleware)
+	e.POST("/create_server", s.CreateServerHandler)
+	e.PUT("/update_server/:id", s.UpdateServerHandler)
+	e.DELETE("/delete_server/:id", s.DeleteServerHandler)
+	e.GET("/list_servers", s.ListServersHandler)
+	e.POST("/create_pipeline", s.CreatePipelineHandler)
+	e.PUT("/update_pipeline/:id", s.UpdatePipelineHandler)
+	e.DELETE("/delete_pipeline/:id", s.DeletePipelineHandler)
+	e.GET("/list_pipelines", s.ListPipelinesHandler)
+	e.POST("/update_prod_pipeline/:id", s.UpdateProdPipelineHandler)
 
 	return e
 }
@@ -316,6 +353,212 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		"message": "ok",
 	})
 
+}
+
+func (s *Server) CreateServerHandler(c echo.Context) error {
+	fmt.Println("Criando servidor")
+
+	serverinfo := new(ServerInfo)
+
+	if err := c.Bind(serverinfo); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid request",
+		})
+	}
+
+	fmt.Println("serverinfo", serverinfo.Host)
+	fmt.Println("serverinfo", serverinfo.Password)
+	fmt.Println("serverinfo", serverinfo.Script)
+	fmt.Println("serverinfo", serverinfo.Pipeline_id)
+	fmt.Println("serverinfo", serverinfo)
+
+	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.Pipeline_id)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error creating server",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message":   "ok",
+		"server_id": strconv.FormatInt(newId, 10),
+	})
+}
+
+func (s *Server) UpdateServerHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	serverinfo := new(ServerInfo)
+
+	if err := c.Bind(serverinfo); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid request",
+		})
+	}
+
+	updateServer := &database.UpdateServer{
+		ID:       id,
+		Host:     serverinfo.Host,
+		Password: serverinfo.Password,
+		Script:   serverinfo.Script,
+	}
+
+	err = s.db.UpdateServer(updateServer)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error updating server",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "ok",
+	})
+
+}
+
+func (s *Server) DeleteServerHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	err = s.db.DeleteServer(id)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error deleting server",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "ok",
+	})
+
+}
+
+func (s *Server) ListServersHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	servers, err := s.db.ListServers(id)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error getting servers",
+		})
+	}
+
+	return c.JSON(http.StatusOK, servers)
+}
+
+func (s *Server) CreatePipelineHandler(c echo.Context) error {
+	name := c.FormValue("name")
+
+	id, err := s.db.CreatePipeline(name)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error creating pipeline",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message":     "ok",
+		"pipeline_id": strconv.FormatInt(id, 10),
+	})
+
+}
+
+func (s *Server) UpdatePipelineHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	name := c.FormValue("name")
+
+	updatePipeline := &database.UpdatePipeline{
+		ID:   id,
+		Name: name,
+	}
+
+	err = s.db.UpdatePipeline(updatePipeline)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error updating pipeline",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "ok",
+	})
+
+}
+
+func (s *Server) DeletePipelineHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	err = s.db.DeletePipeline(id)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error deleting pipeline",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "ok",
+	})
+
+}
+
+func (s *Server) ListPipelinesHandler(c echo.Context) error {
+	pipelines, err := s.db.ListPipelines()
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error getting pipelines",
+		})
+	}
+
+	return c.JSON(http.StatusOK, pipelines)
+
+}
+
+func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	sshclient.UpdateProductionNew(id)
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "ok",
+	})
 }
 
 func (s *Server) HelloWorldHandler(c echo.Context) error {

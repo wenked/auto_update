@@ -7,10 +7,17 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
 )
+
+type ServerInfo struct {
+	Host     string
+	Password string
+	Folder   string
+}
 
 func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 
@@ -90,5 +97,68 @@ func UpdateRepository(id int64) error {
 	}
 
 	// sse.GetHub().Broadcast <- "Atualização realizada com sucesso"
+	return nil
+}
+
+func UpdateProductionNew(pipeline_id int64) error {
+	fmt.Println("Atualizando repositório no servidor de produção")
+
+	slog.Info("Atualizando repositório no servidor de produção")
+
+	servers, err := database.GetService().ListServers(pipeline_id)
+
+	if err != nil {
+		fmt.Println("error ao buscar servidores", err)
+		slog.Error("error ao buscar servidores", err)
+		return err
+	}
+
+	// wait group
+	var wg sync.WaitGroup
+
+	for _, server := range servers {
+		wg.Add(1)
+		go func(server database.UpdateServer) {
+			defer wg.Done()
+			fmt.Println("Atualizando repositório no servidor de produção", server.Host)
+
+			auth := goph.Password(server.Password)
+
+			client, err := goph.NewConn(&goph.Config{
+				User:     "root",
+				Addr:     server.Host,
+				Port:     22,
+				Auth:     auth,
+				Callback: verifyHost,
+			})
+
+			if err != nil {
+				fmt.Println("error ao conectar com o servidor:"+server.Host, err)
+				slog.Error("error ao conectar com o servidor", err)
+				return
+			}
+
+			defer client.Close()
+
+			// run script
+
+			out, err := client.Run(server.Script)
+
+			message := string(out)
+
+			fmt.Println(message)
+
+			if err != nil {
+				fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
+				slog.Error("error ao executar comando de Atualizar o servidor", err)
+				return
+			}
+
+			fmt.Println("Atualização realizada com sucesso:", server.Host)
+
+		}(server)
+	}
+
+	wg.Wait()
 	return nil
 }
