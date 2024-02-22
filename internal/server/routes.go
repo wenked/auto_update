@@ -553,10 +553,12 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 		})
 	}
 
-	sshclient.UpdateProductionNew(id)
+	go func() {
+		sshclient.UpdateProductionNew(id)
+	}()
 
 	return c.JSON(http.StatusOK, map[string]string{
-		"message": "ok",
+		"message": "Atualizaçãp de pipeline de produção iniciada com sucesso",
 	})
 }
 
