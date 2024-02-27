@@ -24,7 +24,9 @@ func SendNotification(message string) error {
 	      body: msg,
 	    }, */
 
-	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: '554299488471', type: 'text', text: {body: '%s'}}`, message)
+	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: %s, type: 'text', text: {body: '%s'}}`, "554299488471", message)
+
+	fmt.Println("Sending message", msgBody)
 	data := []byte(msgBody)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
