@@ -2,12 +2,16 @@ package sshclient
 
 import (
 	"auto-update/internal/database"
+	whatsapp "auto-update/internal/sendNotification"
 	"auto-update/internal/sse"
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
@@ -36,7 +40,6 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 }
 
 func UpdateRepository(id int64) error {
-	fmt.Println("testee2")
 	fmt.Println("Atualizando repositório no servidor update com id: ", id)
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
@@ -119,6 +122,9 @@ func UpdateProductionNew(pipeline_id int64) error {
 	for _, server := range servers {
 		wg.Add(1)
 		go func(server database.UpdateServer) {
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+			defer cancel()
+
 			defer wg.Done()
 			fmt.Println("Atualizando repositório no servidor de produção", server.Host)
 
@@ -155,10 +161,20 @@ func UpdateProductionNew(pipeline_id int64) error {
 			}
 
 			fmt.Println("Atualização realizada com sucesso:", server.Host)
+			ctx.Done()
 
 		}(server)
 	}
 
 	wg.Wait()
+
+	msg := fmt.Sprintf("Atualização realizada com sucesso pipeline: *%s*", strconv.FormatInt(pipeline_id, 10))
+	err = whatsapp.SendNotification(msg)
+
+	if err != nil {
+		fmt.Println("error ao enviar notificação", err)
+		slog.Error("error ao enviar notificação", err)
+		return err
+	}
 	return nil
 }
