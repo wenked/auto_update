@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 // SendNotification sends a notification to a whatsapp number
@@ -13,6 +14,8 @@ func SendNotification(message string) error {
 
 	// load env
 
+	token, exists := os.LookupEnv("WAB_TOKEN")
+	fmt.Println("token", token, exists)
 	url := "https://graph.facebook.com/v18.0/202325376305196/messages"
 
 	/*  messaging_product: 'whatsapp',
