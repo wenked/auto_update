@@ -143,7 +143,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 			defer wg.Done()
 			defer cancel()
 
-			done := make(chan bool, 1)
+			done := make(chan bool)
 			fmt.Println("Atualizando repositório no servidor de produção", server.Host)
 
 			go func() {
