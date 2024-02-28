@@ -6,51 +6,58 @@ import (
 	"auto-update/internal/server"
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
 )
+
 var osSignal chan os.Signal
 
 func main() {
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+		panic("Error loading .env file")
+	}
+	token := os.Getenv("WAB_TOKEN")
+
+	fmt.Println("token-----", token)
 	osSignal = make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-   
-	queue :=  queue.NewUpdateQueue()
-	
+
+	queue := queue.NewUpdateQueue()
+
 	server := server.NewServer(queue)
 	logger.InitLogger()
-	
-	
-    slog.Info("starting api on port", os.Getenv("PORT"), "...")
+
+	slog.Info("starting api on port", os.Getenv("PORT"), "...")
 	// Start the server concurrently
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		 fmt.Printf("Unexpected server error because of: %v\n", err)
+			fmt.Printf("Unexpected server error because of: %v\n", err)
 		}
-	   }()
-	  
-	 
-		go queue.Work()
-	   
-	  
+	}()
 
-	   <-osSignal
-	  
-	   fmt.Println("Terminating server")
-	   server.Shutdown(context.Background())
-	  
-	   fmt.Println("Terminating update queue")
+	go queue.Work()
 
-	   for queue.Size() > 0 {
+	<-osSignal
+
+	fmt.Println("Terminating server")
+	server.Shutdown(context.Background())
+
+	fmt.Println("Terminating update queue")
+
+	for queue.Size() > 0 {
 		time.Sleep(time.Millisecond * 500)
-	   }
-	  
-	   fmt.Println("Complete terminating application")
+	}
 
-	
-	
+	fmt.Println("Complete terminating application")
+
 }
