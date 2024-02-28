@@ -6,26 +6,18 @@ import (
 	"auto-update/internal/server"
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 var osSignal chan os.Signal
 
 func main() {
 
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-		panic("Error loading .env file")
-	}
 	token := os.Getenv("WAB_TOKEN")
 
 	fmt.Println("token-----", token)
