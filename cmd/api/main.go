@@ -18,9 +18,9 @@ var osSignal chan os.Signal
 
 func main() {
 
-	token := os.Getenv("WAB_TOKEN")
+	token, exists := os.LookupEnv("WAB_TOKEN")
+	fmt.Println("token", token, exists)
 
-	fmt.Println("token-----", token)
 	osSignal = make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
