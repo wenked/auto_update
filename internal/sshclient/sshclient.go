@@ -136,49 +136,61 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 	for _, server := range servers {
 		wg.Add(1)
-		go func(server database.UpdateServer) {
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
-			defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+
+		go func(ctx context.Context, server database.UpdateServer) {
 
 			defer wg.Done()
+			defer cancel()
+
+			done := make(chan bool, 1)
 			fmt.Println("Atualizando repositório no servidor de produção", server.Host)
 
-			auth := goph.Password(server.Password)
+			go func() {
+				auth := goph.Password(server.Password)
 
-			client, err := goph.NewConn(&goph.Config{
-				User:     "root",
-				Addr:     server.Host,
-				Port:     22,
-				Auth:     auth,
-				Callback: verifyHost,
-			})
+				client, err := goph.NewConn(&goph.Config{
+					User:     "root",
+					Addr:     server.Host,
+					Port:     22,
+					Auth:     auth,
+					Callback: verifyHost,
+				})
 
-			if err != nil {
-				fmt.Println("error ao conectar com o servidor:"+server.Host, err)
-				slog.Error("error ao conectar com o servidor", err)
-				return
+				if err != nil {
+					fmt.Println("error ao conectar com o servidor:"+server.Host, err)
+					slog.Error("error ao conectar com o servidor", err)
+					return
+				}
+
+				defer client.Close()
+
+				// run script
+
+				out, err := client.Run(server.Script)
+				//out, err := client.Run("ls -a")
+
+				message := string(out)
+
+				fmt.Println(message)
+
+				if err != nil {
+					fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
+					slog.Error("error ao executar comando de Atualizar o servidor", err)
+					return
+				}
+
+				done <- true
+			}()
+
+			select {
+			case <-ctx.Done():
+				fmt.Println("Timeout reached for server", server.Host)
+			case <-done:
+				fmt.Println("Atualização realizada com sucesso:", server.Host)
 			}
 
-			defer client.Close()
-
-			// run script
-
-			out, err := client.Run(server.Script)
-
-			message := string(out)
-
-			fmt.Println(message)
-
-			if err != nil {
-				fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
-				slog.Error("error ao executar comando de Atualizar o servidor", err)
-				return
-			}
-
-			fmt.Println("Atualização realizada com sucesso:", server.Host)
-			ctx.Done()
-
-		}(server)
+		}(ctx, server)
 	}
 
 	wg.Wait()
