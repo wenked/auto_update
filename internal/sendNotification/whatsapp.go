@@ -12,22 +12,13 @@ import (
 
 func SendNotification(message string) error {
 
-	// load env
-
-	token, exists := os.LookupEnv("WAB_TOKEN")
-	fmt.Println("token", token, exists)
+	token, token_exists := os.LookupEnv("WHATSAPP_TOKEN")
+	number, number_exists := os.LookupEnv("WHATSAPP_NUMBER")
+	fmt.Println("token", token, token_exists)
+	fmt.Println("number", number, number_exists)
 	url := "https://graph.facebook.com/v18.0/202325376305196/messages"
 
-	/*  messaging_product: 'whatsapp',
-	    preview_url: false,
-	    recipient_type: 'individual',
-	    to: contact,
-	    type: 'text',
-	    text: {
-	      body: msg,
-	    }, */
-
-	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: %s, type: 'text', text: {body: '%s'}}`, "554299488471", message)
+	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: %s, type: 'text', text: {body: '%s'}}`, number, message)
 
 	fmt.Println("Sending message", msgBody)
 	data := []byte(msgBody)

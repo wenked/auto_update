@@ -244,7 +244,12 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		}
 
-		s.queue.Enqueue(id)
+		options := sshclient.UpdateOptions{
+			ID:         id,
+			Repository: "dev",
+		}
+
+		s.queue.Enqueue(&options)
 
 	case pushDirectlyToStaging:
 		fmt.Println("pusher name", webhook.Pusher.Name)
@@ -252,7 +257,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pusher head commit id", webhook.HeadCommit.Id)
 		fmt.Println("pusher head commit message", webhook.HeadCommit.Message)
 
-		//	id, err := s.db.CreateUpdate(webhook.Pusher.Name, "staging", "pending", "in queue")
+		id, err := s.db.CreateUpdate(webhook.Pusher.Name, "staging", "pending", "in queue")
 		// s.hub.Broadcast <- "update"
 
 		if err != nil {
@@ -262,7 +267,12 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 			})
 		}
 
-		//s.queue.Enqueue(id)
+		options := sshclient.UpdateOptions{
+			ID:         id,
+			Repository: "staging",
+		}
+
+		s.queue.Enqueue(&options)
 	case pushDirectlyToMaster:
 		fmt.Println("pusher name", webhook.Pusher.Name)
 		fmt.Println("pusher email", webhook.Pusher.Email)
@@ -311,7 +321,7 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		fmt.Println("pull head repo", webhook.PullRequest.Head.Repo.FullName)
 		fmt.Println("pull base ref", webhook.PullRequest.Base.Ref)
 
-		//id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
+		id, err := s.db.CreateUpdate(webhook.PullRequest.MergedBy.Login, webhook.PullRequest.Head.Ref, "pending", "in queue")
 
 		// s.hub.Broadcast <- "update"
 
@@ -323,7 +333,12 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		}
 
-		//s.queue.Enqueue(id)
+		options := sshclient.UpdateOptions{
+			ID:         id,
+			Repository: "staging",
+		}
+
+		s.queue.Enqueue(&options)
 	case pullRequestMergedToDevelop:
 		fmt.Println("pull merged", webhook.PullRequest.Merged)
 		fmt.Println("pull merged at", webhook.PullRequest.MergedAt)
@@ -344,7 +359,12 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 
 		}
 
-		s.queue.Enqueue(id)
+		options := sshclient.UpdateOptions{
+			ID:         id,
+			Repository: "dev",
+		}
+
+		s.queue.Enqueue(&options)
 	}
 
 	slog.Info("Repository added in queue")

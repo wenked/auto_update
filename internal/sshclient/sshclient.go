@@ -23,6 +23,11 @@ type ServerInfo struct {
 	Folder   string
 }
 
+type UpdateOptions struct {
+	ID         int64
+	Repository string
+}
+
 func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 
 	hostFound, err := goph.CheckKnownHost(host, remote, key, "")
@@ -39,8 +44,8 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	return goph.AddKnownHost(host, remote, key, "")
 }
 
-func UpdateRepository(id int64) error {
-	fmt.Println("Atualizando repositório no servidor update com id: ", id)
+func UpdateRepository(options *UpdateOptions) error {
+	fmt.Println("Atualizando repositório no servidor update com id: ", options.ID)
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
 	client, err := goph.NewConn(&goph.Config{
@@ -61,7 +66,7 @@ func UpdateRepository(id int64) error {
 
 	fmt.Println("Conectado com sucesso ao servidor")
 
-	err = database.GetService().UpdateStatusAndMessage(id, "running", "Atualizando repositório no servidor update")
+	err = database.GetService().UpdateStatusAndMessage(options.ID, "running", "Atualizando repositório no servidor update")
 	// sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
 
 	if err != nil {
@@ -69,10 +74,20 @@ func UpdateRepository(id int64) error {
 		slog.Error("error ao atualizar status do update", err)
 	}
 
-	// out, err := client.Run("cd /topzap-dev/web-greenchat && ls -a")
+	var folder string
 
-	out, err := client.Run("cd /topzap-dev/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use && git pull && npm install && npm run build")
-	// out, err := client.Run("cd " + directory + " && git pull &&  docker-compose up -d --force-recreate --build")
+	switch options.Repository {
+	case "dev":
+		folder = "topzap-dev"
+	case "staging":
+		folder = "topzap"
+	default:
+		folder = "topzap-dev"
+	}
+
+	runScript := fmt.Sprintf("cd /%s/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use && git pull && npm install && npm run build", folder)
+
+	out, err := client.Run(runScript)
 
 	message := string(out)
 	fmt.Println(message)
@@ -80,7 +95,7 @@ func UpdateRepository(id int64) error {
 	slicedMessage := message[len(message)-300:]
 
 	if err != nil {
-		err = database.GetService().UpdateStatusAndMessage(id, "error", slicedMessage)
+		err = database.GetService().UpdateStatusAndMessage(options.ID, "error", slicedMessage)
 
 		sse.GetHub().Broadcast <- "error ao executar comando de Atualizar"
 		if err != nil {
@@ -92,7 +107,7 @@ func UpdateRepository(id int64) error {
 		return err
 	}
 
-	err = database.GetService().UpdateStatusAndMessage(id, "success", slicedMessage)
+	err = database.GetService().UpdateStatusAndMessage(options.ID, "success", slicedMessage)
 
 	if err != nil {
 		fmt.Println("error ao atualizar status do update", err)
