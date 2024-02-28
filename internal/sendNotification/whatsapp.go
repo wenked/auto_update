@@ -13,6 +13,8 @@ var token = os.Getenv("WAB_TOKEN")
 // SendNotification sends a notification to a whatsapp number
 
 func SendNotification(message string) error {
+
+	fmt.Println("token", token)
 	url := "https://graph.facebook.com/v18.0/202325376305196/messages"
 
 	/*  messaging_product: 'whatsapp',
