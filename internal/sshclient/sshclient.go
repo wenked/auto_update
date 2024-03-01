@@ -177,7 +177,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 				if err != nil {
 					fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
 					slog.Error("error ao executar comando de Atualizar o servidor", err)
-					return
+
 				}
 
 				done <- true
