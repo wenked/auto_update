@@ -18,9 +18,6 @@ var osSignal chan os.Signal
 
 func main() {
 
-	token, exists := os.LookupEnv("WHATSAPP_TOKEN")
-	fmt.Println("token", token, exists)
-
 	osSignal = make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,11 @@ type ServerInfo struct {
 type UpdateOptions struct {
 	ID         int64
 	Repository string
+}
+
+type ErrorMessage struct {
+	Label  string
+	Reason string
 }
 
 func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
@@ -131,6 +137,8 @@ func UpdateProductionNew(pipeline_id int64) error {
 		return err
 	}
 
+	errors := make([]ErrorMessage, 0)
+
 	// wait group
 	var wg sync.WaitGroup
 
@@ -144,7 +152,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 			defer cancel()
 
 			done := make(chan bool)
-			fmt.Println("Atualizando repositório no servidor de produção", server.Host)
+			fmt.Println("Atualizando repositório no servidor de produção", server.Label)
 
 			go func() {
 				auth := goph.Password(server.Password)
@@ -160,7 +168,9 @@ func UpdateProductionNew(pipeline_id int64) error {
 				if err != nil {
 					fmt.Println("error ao conectar com o servidor:"+server.Host, err)
 					slog.Error("error ao conectar com o servidor", err)
-					return
+
+					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
+					done <- true
 				}
 
 				defer client.Close()
@@ -178,6 +188,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 					fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
 					slog.Error("error ao executar comando de Atualizar o servidor", err)
 
+					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
 				}
 
 				done <- true
@@ -185,9 +196,9 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 			select {
 			case <-ctx.Done():
-				fmt.Println("Timeout reached for server", server.Host)
+				fmt.Println("Timeout reached for server", server.Label)
 			case <-done:
-				fmt.Println("Atualização realizada com sucesso:", server.Host)
+				fmt.Println("Atualização realizada com sucesso:", server.Label)
 			}
 
 		}(ctx, server)
@@ -195,8 +206,18 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 	wg.Wait()
 
-	msg := fmt.Sprintf("Atualização realizada com sucesso pipeline: *%s*", strconv.FormatInt(pipeline_id, 10))
-	err = whatsapp.SendNotification(msg)
+	var msg strings.Builder
+
+	msg.WriteString(fmt.Sprintf("Atualização realizada com sucesso pipeline: *%s*", strconv.FormatInt(pipeline_id, 10)))
+
+	if len(errors) > 0 {
+		msg.WriteString("\n\nErros encontrados nos servidores:\n")
+		for _, e := range errors {
+			msg.WriteString(fmt.Sprintf("```*%s* - %s```\n", e.Label, e.Reason))
+		}
+
+	}
+	err = whatsapp.SendNotification(msg.String())
 
 	if err != nil {
 		fmt.Println("error ao enviar notificação", err)

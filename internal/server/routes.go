@@ -27,6 +27,7 @@ type ServerInfo struct {
 	Password    string `json:"password"`
 	Script      string `json:"script"`
 	Pipeline_id int64  `json:"pipeline_id"`
+	Label       string `json:"label"`
 }
 
 type GithubWebhook struct {
@@ -391,7 +392,7 @@ func (s *Server) CreateServerHandler(c echo.Context) error {
 	fmt.Println("serverinfo", serverinfo.Pipeline_id)
 	fmt.Println("serverinfo", serverinfo)
 
-	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.Pipeline_id)
+	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.Pipeline_id, serverinfo.Label)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{

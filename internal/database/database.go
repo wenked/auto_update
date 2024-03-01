@@ -18,7 +18,7 @@ type Service interface {
 	CreateUpdate(pusher_name string, branch string, status string, message string) (int64, error)
 	UpdateStatusAndMessage(id int64, status string, message string) error
 	GetUpdates(limit int, offset int) ([]Update, error)
-	CreateServer(host string, password string, script string, pipeline_id int64) (int64, error)
+	CreateServer(host string, password string, script string, pipeline_id int64, label string) (int64, error)
 	UpdateServer(opts *UpdateServer) error
 	GetServer(id int64) (*UpdateServer, error)
 	DeleteServer(id int64) error
@@ -39,6 +39,7 @@ type UpdateServer struct {
 	Password   string    `json:"password"`
 	Script     string    `json:"script"`
 	PipelineID int64     `json:"pipeline_id"`
+	Label      string    `json:"label"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -209,11 +210,11 @@ func (s *service) GetUpdates(limit int, offset int) ([]Update, error) {
 	return updates, nil
 }
 
-func (s *service) CreateServer(host string, password string, script string, pipeline_id int64) (int64, error) {
+func (s *service) CreateServer(host string, password string, script string, pipeline_id int64, label string) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO servidores (host, password, script,pipeline_id) VALUES (?, ?, ? ,?)`, host, password, script, pipeline_id)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO servidores (host, password, script,pipeline_id) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
 	if err != nil {
 		return 0, err
 	}
@@ -303,7 +304,7 @@ func (s *service) ListServers(pipeline_id int64) ([]UpdateServer, error) {
 	var servers []UpdateServer
 	for rows.Next() {
 		var server UpdateServer
-		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt)
+		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label)
 		if err != nil {
 			fmt.Println("error", err)
 			return nil, err

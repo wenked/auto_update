@@ -14,8 +14,15 @@ func SendNotification(message string) error {
 
 	token, token_exists := os.LookupEnv("WHATSAPP_TOKEN")
 	number, number_exists := os.LookupEnv("WHATSAPP_NUMBER")
-	fmt.Println("token", token, token_exists)
-	fmt.Println("number", number, number_exists)
+
+	if !token_exists {
+		return fmt.Errorf("WHATSAPP_TOKEN not found")
+	}
+
+	if !number_exists {
+		return fmt.Errorf("WHATSAPP_NUMBER not found")
+	}
+
 	url := "https://graph.facebook.com/v18.0/202325376305196/messages"
 
 	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: %s, type: 'text', text: {body: '%s'}}`, number, message)
@@ -45,6 +52,7 @@ func SendNotification(message string) error {
 
 	if resp.StatusCode != 200 {
 		fmt.Println("Error sending message", string(body))
+		return fmt.Errorf("error sending message")
 	}
 
 	fmt.Println("Message sent successfully", string(body))
