@@ -381,6 +381,7 @@ func (s *Server) CreateServerHandler(c echo.Context) error {
 	serverinfo := new(ServerInfo)
 
 	if err := c.Bind(serverinfo); err != nil {
+		fmt.Println("error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"message": "invalid request",
 		})
@@ -395,6 +396,7 @@ func (s *Server) CreateServerHandler(c echo.Context) error {
 	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.Pipeline_id, serverinfo.Label)
 
 	if err != nil {
+		fmt.Println("error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"message": "error creating server",
 		})

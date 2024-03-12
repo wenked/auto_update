@@ -214,8 +214,9 @@ func (s *service) CreateServer(host string, password string, script string, pipe
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO servidores (host, password, script,pipeline_id) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO servidores (host, password, script,pipeline_id,label) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
 	if err != nil {
+		fmt.Println("error in insert", err)
 		return 0, err
 	}
 
@@ -252,6 +253,15 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET script = ? WHERE id = ?`, opts.Script, opts.ID)
 		if err != nil {
 			fmt.Println("error in update script", err)
+			return err
+		}
+	}
+
+	if opts.Label != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET label = ? WHERE id = ?`, opts.Label, opts.ID)
+		if err != nil {
+			fmt.Println("error in update label", err)
+
 			return err
 		}
 	}
