@@ -217,6 +217,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 		}
 
 	}
+	fmt.Println(msg.String())
 	err = whatsapp.SendNotification(msg.String())
 
 	if err != nil {

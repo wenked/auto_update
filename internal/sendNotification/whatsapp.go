@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,18 @@ import (
 )
 
 // SendNotification sends a notification to a whatsapp number
+
+type TextType struct {
+	Body string `json:"body"`
+}
+type Message struct {
+	MessagingProduct string   `json:"messaging_product"`
+	PreviewURL       bool     `json:"preview_url"`
+	RecipientType    string   `json:"recipient_type"`
+	To               string   `json:"to"`
+	Type             string   `json:"type"`
+	Text             TextType `json:"text"`
+}
 
 func SendNotification(message string) error {
 
@@ -25,12 +38,27 @@ func SendNotification(message string) error {
 
 	url := "https://graph.facebook.com/v18.0/202325376305196/messages"
 
-	msgBody := fmt.Sprintf(`{messaging_product: 'whatsapp', preview_url: false, recipient_type: 'individual', to: %s, type: 'text', text: {body: '%s'}}`, number, message)
+	newMessage := Message{
+		MessagingProduct: "whatsapp",
+		PreviewURL:       false,
+		RecipientType:    "individual",
+		To:               number,
+		Type:             "text",
+		Text:             TextType{Body: message},
+	}
+
+	// parse the message to json
+
+	msgBody, err := json.Marshal(newMessage)
+
+	if err != nil {
+		fmt.Println("Error parsing message to json", err)
+		return err
+	}
 
 	fmt.Println("Sending message", msgBody)
-	data := []byte(msgBody)
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(msgBody))
 
 	if err != nil {
 		return err
