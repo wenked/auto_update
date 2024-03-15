@@ -188,7 +188,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 					fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
 					slog.Error("error ao executar comando de Atualizar o servidor", err)
 
-					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
+					errors = append(errors, ErrorMessage{Label: server.Label, Reason: message})
 				}
 
 				done <- true

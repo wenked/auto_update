@@ -120,6 +120,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.DELETE("/delete_pipeline/:id", s.DeletePipelineHandler, checkSecretKeyMiddleware)
 	e.GET("/list_pipelines", s.ListPipelinesHandler, checkSecretKeyMiddleware)
 	e.POST("/update_prod_pipeline/:id", s.UpdateProdPipelineHandler, checkSecretKeyMiddleware)
+	e.GET("/check_servers", s.CheckServers, checkSecretKeyMiddleware)
 
 	return e
 }
@@ -595,4 +596,33 @@ func (s *Server) HelloWorldHandler(c echo.Context) error {
 
 func (s *Server) healthHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, s.db.Health())
+}
+
+func (s *Server) CheckServers(c echo.Context) error {
+
+	website := "https://web.topzap.com.br"
+
+	// check if the website is up
+
+	resp, err := http.Get(website)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error checking website",
+		})
+	}
+
+	// print all the response
+
+	fmt.Println("response", resp)
+
+	if resp.StatusCode != 200 {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "website is down",
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "website is up",
+	})
 }
