@@ -23,11 +23,12 @@ import (
 )
 
 type ServerInfo struct {
-	Host        string `json:"host"`
-	Password    string `json:"password"`
-	Script      string `json:"script"`
-	Pipeline_id int64  `json:"pipeline_id"`
-	Label       string `json:"label"`
+	Host       string `json:"host"`
+	Password   string `json:"password"`
+	Script     string `json:"script"`
+	PipelineID int64  `json:"pipeline_id"`
+	Label      string `json:"label"`
+	Active     bool   `json:"active"`
 }
 
 type GithubWebhook struct {
@@ -391,10 +392,10 @@ func (s *Server) CreateServerHandler(c echo.Context) error {
 	fmt.Println("serverinfo", serverinfo.Host)
 	fmt.Println("serverinfo", serverinfo.Password)
 	fmt.Println("serverinfo", serverinfo.Script)
-	fmt.Println("serverinfo", serverinfo.Pipeline_id)
+	fmt.Println("serverinfo", serverinfo.PipelineID)
 	fmt.Println("serverinfo", serverinfo)
 
-	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.Pipeline_id, serverinfo.Label)
+	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.PipelineID, serverinfo.Label)
 
 	if err != nil {
 		fmt.Println("error", err)
@@ -427,10 +428,13 @@ func (s *Server) UpdateServerHandler(c echo.Context) error {
 	}
 
 	updateServer := &database.UpdateServer{
-		ID:       id,
-		Host:     serverinfo.Host,
-		Password: serverinfo.Password,
-		Script:   serverinfo.Script,
+		ID:         id,
+		Host:       serverinfo.Host,
+		Password:   serverinfo.Password,
+		Script:     serverinfo.Script,
+		Label:      serverinfo.Label,
+		PipelineID: serverinfo.PipelineID,
+		Active:     serverinfo.Active,
 	}
 
 	err = s.db.UpdateServer(updateServer)

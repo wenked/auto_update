@@ -91,7 +91,7 @@ func UpdateRepository(options *UpdateOptions) error {
 		folder = "topzap-dev"
 	}
 
-	runScript := fmt.Sprintf("cd /%s/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use && git pull && npm install && npm run build", folder)
+	runScript := fmt.Sprintf("cd /%s/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use &&  pm2 stop all && git pull && npm install && npm run build && pm2 start all", folder)
 
 	out, err := client.Run(runScript)
 

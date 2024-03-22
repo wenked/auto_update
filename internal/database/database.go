@@ -40,6 +40,7 @@ type UpdateServer struct {
 	Script     string    `json:"script"`
 	PipelineID int64     `json:"pipeline_id"`
 	Label      string    `json:"label"`
+	Active     bool      `json:"active"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -114,10 +115,19 @@ func New() Service {
 		password TEXT,
 		script TEXT,
 		pipeline_id,
+		label TEXT,
+		active BOOLEAN DEFAULT TRUE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (pipeline_id) REFERENCES pipelines (id) ON DELETE CASCADE
 	);`)
+
+	if migration_err != nil {
+		error := fmt.Sprintf("migration_err: %v", migration_err)
+		fmt.Println(error)
+		log.Fatal(migration_err)
+
+	}
 
 	if migration_err != nil {
 		error := fmt.Sprintf("migration_err: %v", migration_err)
@@ -266,6 +276,14 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 		}
 	}
 
+	if opts.Active {
+		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET active = ? WHERE id = ?`, opts.Active, opts.ID)
+		if err != nil {
+			fmt.Println("error in update active", err)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -302,7 +320,7 @@ func (s *service) ListServers(pipeline_id int64) ([]UpdateServer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM servidores WHERE pipeline_id = ?`, pipeline_id)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM servidores WHERE pipeline_id = ? AND active = 1`, pipeline_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -314,7 +332,7 @@ func (s *service) ListServers(pipeline_id int64) ([]UpdateServer, error) {
 	var servers []UpdateServer
 	for rows.Next() {
 		var server UpdateServer
-		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label)
+		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
 		if err != nil {
 			fmt.Println("error", err)
 			return nil, err
