@@ -3,11 +3,12 @@ package tests
 import (
 	"auto-update/internal/server"
 	"encoding/json"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/labstack/echo/v4"
 )
 
 func TestHandler(t *testing.T) {

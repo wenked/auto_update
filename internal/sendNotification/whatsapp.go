@@ -83,7 +83,7 @@ func SendNotification(message string) error {
 		return fmt.Errorf("error sending message")
 	}
 
-	fmt.Println("Message sent successfully", string(body))
+	fmt.Println("Message sent successfully")
 
 	return nil
 

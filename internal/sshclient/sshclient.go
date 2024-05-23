@@ -81,17 +81,19 @@ func UpdateRepository(options *UpdateOptions) error {
 	}
 
 	var folder string
-
+	runScript := ""
 	switch options.Repository {
 	case "dev":
 		folder = "topzap-dev"
+		runScript = fmt.Sprintf("cd /%s/web-greenchat && git pull && docker-compose -f docker-compose-staging.yml up -d --force-recreate --build", folder)
+
 	case "staging":
 		folder = "topzap"
+		runScript = fmt.Sprintf("cd /%s/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use &&  pm2 stop all && git pull && npm install && npm run build && pm2 start all", folder)
+
 	default:
 		folder = "topzap-dev"
 	}
-
-	runScript := fmt.Sprintf("cd /%s/web-greenchat && ls -a && wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash && export NVM_DIR=~/.nvm && source ~/.nvm/nvm.sh && nvm use &&  pm2 stop all && git pull && npm install && npm run build && pm2 start all", folder)
 
 	out, err := client.Run(runScript)
 
@@ -152,9 +154,10 @@ func UpdateProductionNew(pipeline_id int64) error {
 			defer cancel()
 
 			done := make(chan bool)
-			fmt.Println("Atualizando repositório no servidor de produção", server.Label)
 
 			go func() {
+				fmt.Println("Atualizando repositório no servidor de produção", server.Label)
+
 				auth := goph.Password(server.Password)
 
 				client, err := goph.NewConn(&goph.Config{
@@ -171,6 +174,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
 					done <- true
+					return
 				}
 
 				defer client.Close()
@@ -225,5 +229,70 @@ func UpdateProductionNew(pipeline_id int64) error {
 		slog.Error("error ao enviar notificação", err)
 		return err
 	}
+	return nil
+}
+
+func UpdateProductionById(id int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+	defer cancel()
+	fmt.Println("Atualizando repositório no servidor de produção")
+
+	slog.Info("Atualizando repositório no servidor de produção")
+
+	server, err := database.GetService().GetServer(id)
+
+	if err != nil {
+		fmt.Println("error ao buscar servidores", err)
+		slog.Error("error ao buscar servidores", err)
+		return err
+	}
+
+	done := make(chan bool)
+	fmt.Println("Atualizando repositório no servidor de produção", server.Label)
+
+	go func() {
+		auth := goph.Password(server.Password)
+
+		client, err := goph.NewConn(&goph.Config{
+			User:     "root",
+			Addr:     server.Host,
+			Port:     22,
+			Auth:     auth,
+			Callback: verifyHost,
+		})
+
+		if err != nil {
+			fmt.Println("error ao conectar com o servidor:"+server.Host, err)
+			slog.Error("error ao conectar com o servidor", err)
+			done <- true
+			return
+		}
+
+		defer client.Close()
+
+		// run script
+
+		out, err := client.Run(server.Script)
+		//out, err := client.Run("ls -a")
+
+		message := string(out)
+
+		fmt.Println(message)
+
+		if err != nil {
+			fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
+			slog.Error("error ao executar comando de Atualizar o servidor", err)
+		}
+
+		done <- true
+	}()
+
+	select {
+	case <-ctx.Done():
+		fmt.Println("Timeout reached for server", server.Label)
+	case <-done:
+		fmt.Println("Atualização realizada com sucesso:", server.Label)
+	}
+
 	return nil
 }

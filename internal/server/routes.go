@@ -122,6 +122,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.GET("/list_pipelines", s.ListPipelinesHandler, checkSecretKeyMiddleware)
 	e.POST("/update_prod_pipeline/:id", s.UpdateProdPipelineHandler, checkSecretKeyMiddleware)
 	e.GET("/check_servers", s.CheckServers, checkSecretKeyMiddleware)
+	e.POST("/update_production/:id", s.UpdateProductionById, checkSecretKeyMiddleware)
 
 	return e
 }
@@ -588,6 +589,27 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Atualizaçãp de pipeline de produção iniciada com sucesso",
 	})
+}
+
+func (s *Server) UpdateProductionById(c echo.Context) error {
+	fmt.Println("Atualizando produção")
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		fmt.Println("error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "invalid id",
+		})
+	}
+
+	go func() {
+		sshclient.UpdateProductionById(id)
+	}()
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Atualização de produção iniciada com sucesso",
+	})
+
 }
 
 func (s *Server) HelloWorldHandler(c echo.Context) error {

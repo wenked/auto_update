@@ -294,7 +294,7 @@ func (s *service) GetServer(id int64) (*UpdateServer, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM servidores WHERE id = ?`, id)
 
 	var server UpdateServer
-	err := row.Scan(&server.ID, &server.Host, &server.Password, &server.Script)
+	err := row.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
 	if err != nil {
 		fmt.Println("error in query", err)
 		return nil, err
