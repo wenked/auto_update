@@ -1,6 +1,7 @@
 package database
 
 import (
+	"auto-update/internal/database/models"
 	"context"
 	"database/sql"
 	"fmt"
@@ -19,35 +20,18 @@ type Service interface {
 	UpdateStatusAndMessage(id int64, status string, message string) error
 	GetUpdates(limit int, offset int) ([]Update, error)
 	CreateServer(host string, password string, script string, pipeline_id int64, label string) (int64, error)
-	UpdateServer(opts *UpdateServer) error
-	GetServer(id int64) (*UpdateServer, error)
+	UpdateServer(opts *models.UpdateServer) error
+	GetServer(id int64) (*models.UpdateServer, error)
 	DeleteServer(id int64) error
-	ListServers(pipeline_id int64) ([]UpdateServer, error)
+	ListServers(pipeline_id int64) ([]models.UpdateServer, error)
 	CreatePipeline(name string) (int64, error)
-	UpdatePipeline(opts *UpdatePipeline) error
+	UpdatePipeline(opts *models.UpdatePipeline) error
 	DeletePipeline(id int64) error
-	ListPipelines() ([]UpdatePipeline, error)
+	ListPipelines() ([]models.UpdatePipeline, error)
 }
 
 type service struct {
 	db *sql.DB
-}
-
-type UpdateServer struct {
-	ID         int64     `json:"id"`
-	Host       string    `json:"host"`
-	Password   string    `json:"password"`
-	Script     string    `json:"script"`
-	PipelineID int64     `json:"pipeline_id"`
-	Label      string    `json:"label"`
-	Active     bool      `json:"active"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-}
-
-type UpdatePipeline struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
 }
 
 type Update struct {
@@ -72,68 +56,8 @@ func New() Service {
 	}
 
 	_, migration_err := db.Exec(`PRAGMA foreign_keys = ON;`)
-
 	if migration_err != nil {
-		error := fmt.Sprintf("migration_err: %v", migration_err)
-		fmt.Println(error)
 		log.Fatal(migration_err)
-	}
-
-	_, migration_err = db.Exec(`CREATE TABLE IF NOT EXISTS "updates" (
-			ID INTEGER PRIMARY KEY AUTOINCREMENT,
-			"pusher_name" TEXT,
-			"branch" TEXT,
-			"status" TEXT,
-			"message" TEXT,
-			"created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-			"updated_at" DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`)
-
-	if migration_err != nil {
-		error := fmt.Sprintf("migration_err: %v", migration_err)
-		fmt.Println(error)
-		log.Fatal(migration_err)
-	}
-
-	_, migration_err = db.Exec(`CREATE TABLE IF NOT EXISTS pipelines (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`)
-
-	if migration_err != nil {
-		error := fmt.Sprintf("migration_err: %v", migration_err)
-		fmt.Println(error)
-		log.Fatal(migration_err)
-
-	}
-
-	_, migration_err = db.Exec(`CREATE TABLE IF NOT EXISTS servidores (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		host TEXT,
-		password TEXT,
-		script TEXT,
-		pipeline_id,
-		label TEXT,
-		active BOOLEAN DEFAULT TRUE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (pipeline_id) REFERENCES pipelines (id) ON DELETE CASCADE
-	);`)
-
-	if migration_err != nil {
-		error := fmt.Sprintf("migration_err: %v", migration_err)
-		fmt.Println(error)
-		log.Fatal(migration_err)
-
-	}
-
-	if migration_err != nil {
-		error := fmt.Sprintf("migration_err: %v", migration_err)
-		fmt.Println(error)
-		log.Fatal(migration_err)
-
 	}
 
 	s := &service{db: db}
@@ -224,7 +148,7 @@ func (s *service) CreateServer(host string, password string, script string, pipe
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO servidores (host, password, script,pipeline_id,label) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO servers (host, password, script,pipeline_id,label) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
 	if err != nil {
 		fmt.Println("error in insert", err)
 		return 0, err
@@ -239,12 +163,12 @@ func (s *service) CreateServer(host string, password string, script string, pipe
 	return id, nil
 }
 
-func (s *service) UpdateServer(opts *UpdateServer) error {
+func (s *service) UpdateServer(opts *models.UpdateServer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if opts.Host != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET Host = ? WHERE id = ?`, opts.Host, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Host = ? WHERE id = ?`, opts.Host, opts.ID)
 		if err != nil {
 			fmt.Println("error in update host", err)
 			return err
@@ -252,7 +176,7 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 	}
 
 	if opts.Password != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET Password = ? WHERE id = ?`, opts.Password, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Password = ? WHERE id = ?`, opts.Password, opts.ID)
 		if err != nil {
 			fmt.Println("error in update password", err)
 			return err
@@ -260,7 +184,7 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 	}
 
 	if opts.Script != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET script = ? WHERE id = ?`, opts.Script, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET script = ? WHERE id = ?`, opts.Script, opts.ID)
 		if err != nil {
 			fmt.Println("error in update script", err)
 			return err
@@ -268,7 +192,7 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 	}
 
 	if opts.Label != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET label = ? WHERE id = ?`, opts.Label, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET label = ? WHERE id = ?`, opts.Label, opts.ID)
 		if err != nil {
 			fmt.Println("error in update label", err)
 
@@ -277,7 +201,7 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 	}
 
 	if opts.Active {
-		_, err := s.db.ExecContext(ctx, `UPDATE servidores SET active = ? WHERE id = ?`, opts.Active, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET active = ? WHERE id = ?`, opts.Active, opts.ID)
 		if err != nil {
 			fmt.Println("error in update active", err)
 			return err
@@ -287,13 +211,13 @@ func (s *service) UpdateServer(opts *UpdateServer) error {
 	return nil
 }
 
-func (s *service) GetServer(id int64) (*UpdateServer, error) {
+func (s *service) GetServer(id int64) (*models.UpdateServer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * FROM servidores WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM servers WHERE id = ?`, id)
 
-	var server UpdateServer
+	var server models.UpdateServer
 	err := row.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -307,7 +231,7 @@ func (s *service) DeleteServer(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM servidores WHERE id = ?`, id)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
 	if err != nil {
 		fmt.Println("error in delete", err)
 		return err
@@ -316,11 +240,11 @@ func (s *service) DeleteServer(id int64) error {
 	return nil
 }
 
-func (s *service) ListServers(pipeline_id int64) ([]UpdateServer, error) {
+func (s *service) ListServers(pipeline_id int64) ([]models.UpdateServer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM servidores WHERE pipeline_id = ? AND active = 1`, pipeline_id)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM servers WHERE pipeline_id = ? AND active = 1`, pipeline_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -329,9 +253,9 @@ func (s *service) ListServers(pipeline_id int64) ([]UpdateServer, error) {
 
 	defer rows.Close()
 
-	var servers []UpdateServer
+	var servers []models.UpdateServer
 	for rows.Next() {
-		var server UpdateServer
+		var server models.UpdateServer
 		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
 		if err != nil {
 			fmt.Println("error", err)
@@ -362,7 +286,7 @@ func (s *service) CreatePipeline(name string) (int64, error) {
 	return id, nil
 }
 
-func (s *service) UpdatePipeline(opts *UpdatePipeline) error {
+func (s *service) UpdatePipeline(opts *models.UpdatePipeline) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -390,7 +314,7 @@ func (s *service) DeletePipeline(id int64) error {
 	return nil
 }
 
-func (s *service) ListPipelines() ([]UpdatePipeline, error) {
+func (s *service) ListPipelines() ([]models.UpdatePipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -403,9 +327,9 @@ func (s *service) ListPipelines() ([]UpdatePipeline, error) {
 
 	defer rows.Close()
 
-	var pipelines []UpdatePipeline
+	var pipelines []models.UpdatePipeline
 	for rows.Next() {
-		var pipeline UpdatePipeline
+		var pipeline models.UpdatePipeline
 		err := rows.Scan(&pipeline.ID, &pipeline.Name)
 		if err != nil {
 			fmt.Println("error", err)

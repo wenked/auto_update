@@ -1,3 +1,4 @@
+include .env
 # Simple Makefile for a Go project
 
 # Build the application
@@ -13,7 +14,24 @@ run:
 	@templ generate
 	@go run cmd/api/main.go
 
+db-stats:
+	@echo "Getting DB stats..."
+	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose status
 # Create DB container
+migrate:
+	@echo "Migrating..."
+	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose -dir "${MIGRATION_DIR}" up
+revert:
+	@echo "Reverting..."
+	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose down
+seed:
+	@echo "Seeding..."
+	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} GOOSE_MIGRATION_DIR=${MIGRATION_PATH} goose up
+
+create-migration:
+	@echo "Creating migration..."
+	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} GOOSE_MIGRATION_DIR=${MIGRATION_PATH} goose create $(name) sql
+
 docker-run:
 	@if docker compose up 2>/dev/null; then \
 		: ; \

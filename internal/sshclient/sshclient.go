@@ -148,7 +148,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 		wg.Add(1)
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
 
-		go func(ctx context.Context, server database.UpdateServer) {
+		go func(ctx context.Context, server models.UpdateServer) {
 
 			defer wg.Done()
 			defer cancel()

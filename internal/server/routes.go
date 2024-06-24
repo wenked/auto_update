@@ -1,7 +1,7 @@
 package server
 
 import (
-	"auto-update/internal/database"
+	"auto-update/internal/database/models"
 	"auto-update/internal/sse"
 	"auto-update/internal/sshclient"
 	"auto-update/utils"
@@ -111,6 +111,25 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.POST("/github-webhook", s.GithubWebhookHandler)
 	e.GET("/home", s.HomeHandler)
 	e.POST("/test_sse", s.TestSSEHandler)
+
+	apiGroup := e.Group("/api")
+	serverGroup := apiGroup.Group("/server")
+	pipelineGroup := apiGroup.Group("/pipeline")
+
+	apiGroup.Use(checkSecretKeyMiddleware)
+
+	serverGroup.POST("/create", s.CreateServerHandler)
+	serverGroup.PUT("/update/:id", s.UpdateServerHandler)
+	serverGroup.DELETE("/delete/:id", s.DeleteServerHandler)
+	serverGroup.GET("/list", s.ListServersHandler)
+	serverGroup.GET("/list/:id", s.ListServersHandler)
+
+	pipelineGroup.POST("/create", s.CreatePipelineHandler)
+	pipelineGroup.PUT("/update/:id", s.UpdatePipelineHandler)
+	pipelineGroup.DELETE("/delete/:id", s.DeletePipelineHandler)
+	pipelineGroup.GET("/list", s.ListPipelinesHandler)
+	pipelineGroup.POST("/run/:id", s.UpdateProdPipelineHandler)
+	pipelineGroup.GET("/check", s.CheckServers)
 
 	e.POST("/create_server", s.CreateServerHandler, checkSecretKeyMiddleware)
 	e.PUT("/update_server/:id", s.UpdateServerHandler, checkSecretKeyMiddleware)
@@ -428,7 +447,7 @@ func (s *Server) UpdateServerHandler(c echo.Context) error {
 		})
 	}
 
-	updateServer := &database.UpdateServer{
+	updateServer := &models.UpdateServer{
 		ID:         id,
 		Host:       serverinfo.Host,
 		Password:   serverinfo.Password,
@@ -518,7 +537,7 @@ func (s *Server) UpdatePipelineHandler(c echo.Context) error {
 
 	name := c.FormValue("name")
 
-	updatePipeline := &database.UpdatePipeline{
+	updatePipeline := &models.UpdatePipeline{
 		ID:   id,
 		Name: name,
 	}
