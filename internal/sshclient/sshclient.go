@@ -2,6 +2,7 @@ package sshclient
 
 import (
 	"auto-update/internal/database"
+	"auto-update/internal/database/models"
 	whatsapp "auto-update/internal/sendNotification"
 	"auto-update/internal/sse"
 	"context"
