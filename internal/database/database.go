@@ -28,6 +28,12 @@ type Service interface {
 	UpdatePipeline(opts *models.UpdatePipeline) error
 	DeletePipeline(id int64) error
 	ListPipelines() ([]models.UpdatePipeline, error)
+	CreateUser(name string, email string, password string) (int64, error)
+	UpdateUser(opts *models.User) error
+	DeleteUser(id int64) error
+	GetUserByEmail(email string) (models.User, error)
+	GetUserByID(id int64) (models.User, error)
+	ListUsers() ([]models.User, error)
 }
 
 type service struct {
@@ -340,4 +346,127 @@ func (s *service) ListPipelines() ([]models.UpdatePipeline, error) {
 	}
 
 	return pipelines, nil
+}
+
+func (s *service) CreateUser(name string, email string, password string) (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := s.db.ExecContext(ctx, `INSERT INTO users (name,email, password) VALUES (?, ?, ?)`, name, email, password)
+
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (s *service) UpdateUser(opts *models.User) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if opts.Name != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET name = ? WHERE id = ?`, opts.Name, opts.ID)
+		if err != nil {
+			slog.Error("error in update name", err)
+			return err
+		}
+	}
+
+	if opts.Email != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET email = ? WHERE id = ?`, opts.Email, opts.ID)
+		if err != nil {
+			slog.Error("error in update email", err)
+			return err
+		}
+	}
+
+	if opts.Password != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET password = ? WHERE id = ?`, opts.Password, opts.ID)
+		if err != nil {
+			slog.Error("error in update password", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) DeleteUser(id int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+	if err != nil {
+		slog.Error("error in delete", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) GetUserByEmail(email string) (models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE email = ?`, email)
+
+	var user models.User
+	err := row.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		slog.Error("error in query", err)
+		return models.User{}, err
+	}
+
+	return user, nil
+}
+
+func (s *service) GetUserByID(id int64) (models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE id = ?`, id)
+
+	var user models.User
+	err := row.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		slog.Error("error in query", err)
+		return models.User{}, err
+	}
+
+	return user, nil
+}
+
+func (s *service) ListUsers() ([]models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users`)
+
+	if err != nil {
+		slog.Error("error in query", err)
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			slog.Error("error", err)
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
 }
