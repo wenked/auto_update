@@ -6,6 +6,6 @@ import (
 )
 
 func InitLogger() {
-  logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-  slog.SetDefault(logger)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 }

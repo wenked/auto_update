@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -98,6 +99,7 @@ func checkMAC(message []byte, messageMAC, key string) bool {
 }
 
 func (s *Server) RegisterRoutes() http.Handler {
+	jwtSecret := os.Getenv("SECRET_JWT")
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -113,10 +115,26 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.POST("/test_sse", s.TestSSEHandler)
 
 	apiGroup := e.Group("/api")
-	serverGroup := apiGroup.Group("/server")
-	pipelineGroup := apiGroup.Group("/pipeline")
+
+	sessionGroup := apiGroup.Group("/session")
+	serverGroup := apiGroup.Group("/servers")
+	pipelineGroup := apiGroup.Group("/pipelines")
+	usersGroupNoAuth := apiGroup.Group("/users")
+	usersGroupAuth := apiGroup.Group("/users")
+
+	sessionGroup.POST("/login", s.loginHandler)
 
 	apiGroup.Use(checkSecretKeyMiddleware)
+	serverGroup.Use(echojwt.JWT([]byte(jwtSecret)))
+	pipelineGroup.Use(echojwt.JWT([]byte(jwtSecret)))
+	usersGroupAuth.Use(echojwt.JWT([]byte(jwtSecret)))
+
+	usersGroupNoAuth.POST("/create", s.CreateUserHandler)
+
+	usersGroupAuth.PUT("/update/:id", s.UpdateUserHandler)
+	usersGroupAuth.DELETE("/delete/:id", s.UpdateUserHandler)
+	usersGroupAuth.POST("/create_notification", s.CreateNotificationConfigHandler)
+	// usersGroupAuth.GET("/list_users", s.ListUsersHandler)
 
 	serverGroup.POST("/create", s.CreateServerHandler)
 	serverGroup.PUT("/update/:id", s.UpdateServerHandler)
@@ -506,129 +524,6 @@ func (s *Server) ListServersHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, servers)
-}
-
-func (s *Server) CreatePipelineHandler(c echo.Context) error {
-	name := c.FormValue("name")
-
-	id, err := s.db.CreatePipeline(name)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error creating pipeline",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message":     "ok",
-		"pipeline_id": strconv.FormatInt(id, 10),
-	})
-
-}
-
-func (s *Server) UpdatePipelineHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	name := c.FormValue("name")
-
-	updatePipeline := &models.UpdatePipeline{
-		ID:   id,
-		Name: name,
-	}
-
-	err = s.db.UpdatePipeline(updatePipeline)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error updating pipeline",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "ok",
-	})
-
-}
-
-func (s *Server) DeletePipelineHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	err = s.db.DeletePipeline(id)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error deleting pipeline",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "ok",
-	})
-
-}
-
-func (s *Server) ListPipelinesHandler(c echo.Context) error {
-	pipelines, err := s.db.ListPipelines()
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error getting pipelines",
-		})
-	}
-
-	return c.JSON(http.StatusOK, pipelines)
-
-}
-
-func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	go func() {
-		sshclient.UpdateProductionNew(id)
-	}()
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Atualizaçãp de pipeline de produção iniciada com sucesso",
-	})
-}
-
-func (s *Server) UpdateProductionById(c echo.Context) error {
-	fmt.Println("Atualizando produção")
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		fmt.Println("error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	go func() {
-		sshclient.UpdateProductionById(id)
-	}()
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Atualização de produção iniciada com sucesso",
-	})
-
 }
 
 func (s *Server) HelloWorldHandler(c echo.Context) error {

@@ -24,16 +24,21 @@ type Service interface {
 	GetServer(id int64) (*models.UpdateServer, error)
 	DeleteServer(id int64) error
 	ListServers(pipeline_id int64) ([]models.UpdateServer, error)
-	CreatePipeline(name string) (int64, error)
-	UpdatePipeline(opts *models.UpdatePipeline) error
-	DeletePipeline(id int64) error
-	ListPipelines() ([]models.UpdatePipeline, error)
+	CreatePipeline(name string, id int64) (int64, error)
+	UpdatePipeline(opts *models.UpdatePipeline, user_id int64) error
+	DeletePipeline(id int64, user_id int64) error
+	ListPipelines(user_id int64) ([]models.UpdatePipeline, error)
+	GetUserPipelineById(pipeline_id int64, user_id int64) (models.Pipeline, error)
 	CreateUser(name string, email string, password string) (int64, error)
 	UpdateUser(opts *models.User) error
 	DeleteUser(id int64) error
 	GetUserByEmail(email string) (models.User, error)
 	GetUserByID(id int64) (models.User, error)
-	ListUsers() ([]models.User, error)
+	ListUsers(page int64, limit int64) ([]models.User, error)
+	CreateNotificationConfig(config *models.NotificationConfig) (int64, error)
+	UpdateNotificationConfig(userId int64, notificationConfig *models.NotificationConfig) (int64, error)
+	DeleteNotificationConfig(id int64) error
+	GetUserNotificationConfigs(userId int64) ([]models.NotificationConfig, error)
 }
 
 type service struct {
@@ -249,8 +254,8 @@ func (s *service) DeleteServer(id int64) error {
 func (s *service) ListServers(pipeline_id int64) ([]models.UpdateServer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM servers WHERE pipeline_id = ? AND active = 1`, pipeline_id)
+	fmt.Println("pipeline_id", pipeline_id)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM "servers" WHERE pipeline_id = ? AND active = 1`, pipeline_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -271,14 +276,16 @@ func (s *service) ListServers(pipeline_id int64) ([]models.UpdateServer, error) 
 		servers = append(servers, server)
 	}
 
+	fmt.Println("servers", servers)
+
 	return servers, nil
 }
 
-func (s *service) CreatePipeline(name string) (int64, error) {
+func (s *service) CreatePipeline(name string, user_id int64) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO pipelines (name) VALUES (?)`, name)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO pipelines (name,user_id) VALUES (?,?)`, name, user_id)
 	if err != nil {
 		return 0, err
 	}
@@ -292,12 +299,12 @@ func (s *service) CreatePipeline(name string) (int64, error) {
 	return id, nil
 }
 
-func (s *service) UpdatePipeline(opts *models.UpdatePipeline) error {
+func (s *service) UpdatePipeline(opts *models.UpdatePipeline, user_id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if opts.Name != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE pipelines SET Name = ? WHERE id = ?`, opts.Name, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE pipelines SET Name = ? WHERE id = ? and user_id = ?`, opts.Name, opts.ID, user_id)
 		if err != nil {
 			fmt.Println("error in update name", err)
 			return err
@@ -307,11 +314,11 @@ func (s *service) UpdatePipeline(opts *models.UpdatePipeline) error {
 	return nil
 }
 
-func (s *service) DeletePipeline(id int64) error {
+func (s *service) DeletePipeline(id int64, user_id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM pipelines WHERE id = ?`, id)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM pipelines WHERE id = ? and user_id = ?`, id, user_id)
 	if err != nil {
 		fmt.Println("error in delete", err)
 		return err
@@ -320,11 +327,11 @@ func (s *service) DeletePipeline(id int64) error {
 	return nil
 }
 
-func (s *service) ListPipelines() ([]models.UpdatePipeline, error) {
+func (s *service) ListPipelines(user_id int64) ([]models.UpdatePipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM pipelines`)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM pipelines WHERE user_id = ?`, user_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -346,6 +353,23 @@ func (s *service) ListPipelines() ([]models.UpdatePipeline, error) {
 	}
 
 	return pipelines, nil
+}
+
+func (s *service) GetUserPipelineById(pipeline_id int64, user_id int64) (models.Pipeline, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM pipelines WHERE id = ? and user_id = ?`, pipeline_id, user_id)
+
+	var pipeline models.Pipeline
+	err := row.Scan(&pipeline.ID, &pipeline.Name, &pipeline.CreatedAt, &pipeline.UpdatedAt, &pipeline.UserID)
+	if err != nil {
+		slog.Error("error in user pipeline query", err)
+		return models.Pipeline{}, err
+	}
+
+	return pipeline, nil
+
 }
 
 func (s *service) CreateUser(name string, email string, password string) (int64, error) {
@@ -418,7 +442,7 @@ func (s *service) GetUserByEmail(email string) (models.User, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE email = ?`, email)
 
 	var user models.User
-	err := row.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		slog.Error("error in query", err)
 		return models.User{}, err
@@ -443,11 +467,12 @@ func (s *service) GetUserByID(id int64) (models.User, error) {
 	return user, nil
 }
 
-func (s *service) ListUsers() ([]models.User, error) {
+func (s *service) ListUsers(page int64, limit int64) ([]models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users`)
+	offset := (page - 1) * limit
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users LIMIT ? OFFSET ?`, page, offset)
 
 	if err != nil {
 		slog.Error("error in query", err)
@@ -469,4 +494,24 @@ func (s *service) ListUsers() ([]models.User, error) {
 	}
 
 	return users, nil
+}
+
+func (s *service) CreateNotificationConfig(config *models.NotificationConfig) (int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_conig (type,name,number,user_id) VALUES (?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID)
+	if err != nil {
+		slog.Error("error inserting notification config", err)
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+
+	if err != nil {
+		slog.Error("error getting notification config id", err)
+		return 0, err
+	}
+
+	return id, nil
 }

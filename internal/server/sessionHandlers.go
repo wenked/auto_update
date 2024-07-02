@@ -2,6 +2,7 @@ package server
 
 import (
 	"auto-update/internal/database/models"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -29,8 +30,9 @@ func (s *Server) loginHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
+	fmt.Println(session, "session")
 	user, err := s.db.GetUserByEmail(session.Email)
-
+	fmt.Println(user, "user")
 	if err != nil {
 		slog.Error("error getting user", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid email or password"})
