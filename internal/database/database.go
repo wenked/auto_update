@@ -36,9 +36,9 @@ type Service interface {
 	GetUserByID(id int64) (models.User, error)
 	ListUsers(page int64, limit int64) ([]models.User, error)
 	CreateNotificationConfig(config *models.NotificationConfig) (int64, error)
-	UpdateNotificationConfig(userId int64, notificationConfig *models.NotificationConfig) (int64, error)
-	DeleteNotificationConfig(id int64) error
-	GetUserNotificationConfigs(userId int64) ([]models.NotificationConfig, error)
+	UpdateNotificationConfig(id int64, userId int64, notificationConfig *models.NotificationConfig) error
+	DeleteNotificationConfig(id int64, userId int64) error
+	GetUserNotificationConfig(id int64, userId int64) (models.NotificationConfig, error)
 }
 
 type service struct {
@@ -514,4 +514,65 @@ func (s *service) CreateNotificationConfig(config *models.NotificationConfig) (i
 	}
 
 	return id, nil
+}
+
+func (s *service) UpdateNotificationConfig(id int64, userId int64, config *models.NotificationConfig) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if config.Name != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET name = ? WHERE user_id = ?`, config.Name, userId)
+		if err != nil {
+			slog.Error("error update notification config id", err)
+			return err
+		}
+	}
+
+	if config.Number != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET number = ? WHERE user_id = ?`, config.Number, userId)
+		if err != nil {
+			slog.Error("error update notification config id", err)
+			return err
+		}
+	}
+
+	if config.Type != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET type = ? WHERE user_id = ?`, config.Type, userId)
+		if err != nil {
+			slog.Error("error update notification config id", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) DeleteNotificationConfig(id int64, userId int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx, `DELETE from notification_config WHERE id = ? and user_id = ? `, id, userId)
+
+	if err != nil {
+		slog.Error("Error deleting notification config", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) GetUserNotificationConfig(id int64, userId int64) (models.NotificationConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	row := s.db.QueryRowContext(ctx, `SELECT * from notification_config where id = ? and user_id = ?`, id, userId)
+
+	var notificationConfig models.NotificationConfig
+	err := row.Scan(&notificationConfig.ID, &notificationConfig.Name, &notificationConfig.Number, &notificationConfig.Type, &notificationConfig.CreatedAt, &notificationConfig.UpdatedAt)
+	if err != nil {
+		slog.Error("error in GetUserNotificationConfig query", err)
+		return models.NotificationConfig{}, err
+	}
+
+	return notificationConfig, nil
 }

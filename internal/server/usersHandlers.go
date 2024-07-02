@@ -227,5 +227,7 @@ func (s *Server) CreateNotificationConfigHandler(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "internal server error"})
 	}
 
+	fmt.Println(loggedUserId)
+
 	return nil
 }
