@@ -149,17 +149,17 @@ func (s *Server) RegisterRoutes() http.Handler {
 	pipelineGroup.POST("/run/:id", s.UpdateProdPipelineHandler)
 	pipelineGroup.GET("/check", s.CheckServers)
 
-	e.POST("/create_server", s.CreateServerHandler, checkSecretKeyMiddleware)
-	e.PUT("/update_server/:id", s.UpdateServerHandler, checkSecretKeyMiddleware)
-	e.DELETE("/delete_server/:id", s.DeleteServerHandler, checkSecretKeyMiddleware)
-	e.GET("/list_servers", s.ListServersHandler, checkSecretKeyMiddleware)
-	e.POST("/create_pipeline", s.CreatePipelineHandler, checkSecretKeyMiddleware)
-	e.PUT("/update_pipeline/:id", s.UpdatePipelineHandler, checkSecretKeyMiddleware)
-	e.DELETE("/delete_pipeline/:id", s.DeletePipelineHandler, checkSecretKeyMiddleware)
-	e.GET("/list_pipelines", s.ListPipelinesHandler, checkSecretKeyMiddleware)
-	e.POST("/update_prod_pipeline/:id", s.UpdateProdPipelineHandler, checkSecretKeyMiddleware)
-	e.GET("/check_servers", s.CheckServers, checkSecretKeyMiddleware)
-	e.POST("/update_production/:id", s.UpdateProductionById, checkSecretKeyMiddleware)
+	// e.POST("/create_server", s.CreateServerHandler, checkSecretKeyMiddleware)
+	// e.PUT("/update_server/:id", s.UpdateServerHandler, checkSecretKeyMiddleware)
+	// e.DELETE("/delete_server/:id", s.DeleteServerHandler, checkSecretKeyMiddleware)
+	// e.GET("/list_servers", s.ListServersHandler, checkSecretKeyMiddleware)
+	// e.POST("/create_pipeline", s.CreatePipelineHandler, checkSecretKeyMiddleware)
+	// e.PUT("/update_pipeline/:id", s.UpdatePipelineHandler, checkSecretKeyMiddleware)
+	// e.DELETE("/delete_pipeline/:id", s.DeletePipelineHandler, checkSecretKeyMiddleware)
+	// e.GET("/list_pipelines", s.ListPipelinesHandler, checkSecretKeyMiddleware)
+	// e.POST("/update_prod_pipeline/:id", s.UpdateProdPipelineHandler, checkSecretKeyMiddleware)
+	// e.GET("/check_servers", s.CheckServers, checkSecretKeyMiddleware)
+	// e.POST("/update_production/:id", s.UpdateProductionById, checkSecretKeyMiddleware)
 
 	return e
 }
