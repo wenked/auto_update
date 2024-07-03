@@ -5,6 +5,7 @@ import (
 	"auto-update/internal/database/models"
 	whatsapp "auto-update/internal/sendNotification"
 	"auto-update/internal/sse"
+	"auto-update/utils"
 	"context"
 	"fmt"
 	"log/slog"
@@ -64,8 +65,8 @@ func UpdateRepository(options *UpdateOptions) error {
 	})
 
 	if err != nil {
-		fmt.Println("error ao conectar com o servidor", err)
-		slog.Error("error ao conectar com o servidor", err)
+
+		slog.Error("error ao conectar com o servidor", "error", err)
 		return err
 	}
 
@@ -77,8 +78,7 @@ func UpdateRepository(options *UpdateOptions) error {
 	// sse.GetHub().Broadcast <- "Atualizando repositório no servidor update"
 
 	if err != nil {
-		fmt.Println("error ao atualizar status do update", err)
-		slog.Error("error ao atualizar status do update", err)
+		slog.Error("error ao atualizar status do update", "error", err)
 	}
 
 	var folder string
@@ -128,15 +128,14 @@ func UpdateRepository(options *UpdateOptions) error {
 }
 
 func UpdateProductionNew(pipeline_id int64) error {
-	fmt.Println("Atualizando repositório no servidor de produção")
 
 	slog.Info("Atualizando repositório no servidor de produção")
 
 	servers, err := database.GetService().ListServers(pipeline_id)
 
 	if err != nil {
-		fmt.Println("error ao buscar servidores", err)
-		slog.Error("error ao buscar servidores", err)
+
+		slog.Error("error ao buscar servidores", "error", err)
 		return err
 	}
 
@@ -159,7 +158,17 @@ func UpdateProductionNew(pipeline_id int64) error {
 			go func() {
 				fmt.Println("Atualizando repositório no servidor de produção", server.Label)
 
-				auth := goph.Password(server.Password)
+				decryptedPassword, err := utils.Decrypt(server.Password)
+
+				if err != nil {
+					slog.Error("error ao decriptar password com o servidor", "error", err)
+
+					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
+					done <- true
+					return
+				}
+
+				auth := goph.Password(decryptedPassword)
 
 				client, err := goph.NewConn(&goph.Config{
 					User:     "root",
@@ -171,7 +180,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 				if err != nil {
 					fmt.Println("error ao conectar com o servidor:"+server.Host, err)
-					slog.Error("error ao conectar com o servidor", err)
+					slog.Error("error ao conectar com o servidor", "error", err)
 
 					errors = append(errors, ErrorMessage{Label: server.Label, Reason: err.Error()})
 					done <- true
@@ -183,15 +192,14 @@ func UpdateProductionNew(pipeline_id int64) error {
 				// run script
 
 				out, err := client.Run(server.Script)
-				//out, err := client.Run("ls -a")
+				// out, err := client.Run("ls -a")
 
 				message := string(out)
 
 				fmt.Println(message)
 
 				if err != nil {
-					fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
-					slog.Error("error ao executar comando de Atualizar o servidor", err)
+					slog.Error("error ao executar comando de Atualizar o servidor:"+server.Host, "error", err)
 
 					errors = append(errors, ErrorMessage{Label: server.Label, Reason: message})
 				}
@@ -201,9 +209,9 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 			select {
 			case <-ctx.Done():
-				fmt.Println("Timeout reached for server", server.Label)
+				slog.Info("Timeout reached for server", "info", server.Label)
 			case <-done:
-				fmt.Println("Atualização realizada com sucesso:", server.Label)
+				slog.Info("Atualização realizada com sucesso:", "info", server.Label)
 			}
 
 		}(ctx, server)
@@ -226,8 +234,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 	err = whatsapp.SendNotification(msg.String())
 
 	if err != nil {
-		fmt.Println("error ao enviar notificação", err)
-		slog.Error("error ao enviar notificação", err)
+		slog.Error("error ao enviar notificação", "error", err)
 		return err
 	}
 	return nil
@@ -236,23 +243,30 @@ func UpdateProductionNew(pipeline_id int64) error {
 func UpdateProductionById(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
 	defer cancel()
-	fmt.Println("Atualizando repositório no servidor de produção")
 
 	slog.Info("Atualizando repositório no servidor de produção")
 
 	server, err := database.GetService().GetServer(id)
 
 	if err != nil {
-		fmt.Println("error ao buscar servidores", err)
-		slog.Error("error ao buscar servidores", err)
+
+		slog.Error("error ao buscar servidores", "error", err)
 		return err
 	}
 
 	done := make(chan bool)
-	fmt.Println("Atualizando repositório no servidor de produção", server.Label)
 
+	slog.Info("Atualizando repositório no servidor de produção", "info", server.Label)
 	go func() {
-		auth := goph.Password(server.Password)
+
+		decryptedPassword, err := utils.Decrypt(server.Password)
+		if err != nil {
+			slog.Error("error ao decriptar o password:"+server.Host, "error", err)
+			done <- true
+			return
+		}
+
+		auth := goph.Password(decryptedPassword)
 
 		client, err := goph.NewConn(&goph.Config{
 			User:     "root",
@@ -263,8 +277,7 @@ func UpdateProductionById(id int64) error {
 		})
 
 		if err != nil {
-			fmt.Println("error ao conectar com o servidor:"+server.Host, err)
-			slog.Error("error ao conectar com o servidor", err)
+			slog.Error("error ao conectar com o servidor:"+server.Host, "error", err)
 			done <- true
 			return
 		}
@@ -281,8 +294,7 @@ func UpdateProductionById(id int64) error {
 		fmt.Println(message)
 
 		if err != nil {
-			fmt.Println("error ao executar comando de Atualizar o servidor:"+server.Host, err)
-			slog.Error("error ao executar comando de Atualizar o servidor", err)
+			slog.Error("error ao executar comando de Atualizar o servidor:"+server.Host, "error", err)
 		}
 
 		done <- true

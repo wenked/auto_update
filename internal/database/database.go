@@ -2,6 +2,7 @@ package database
 
 import (
 	"auto-update/internal/database/models"
+	"auto-update/utils"
 	"context"
 	"database/sql"
 	"fmt"
@@ -39,6 +40,7 @@ type Service interface {
 	UpdateNotificationConfig(id int64, userId int64, notificationConfig *models.NotificationConfig) error
 	DeleteNotificationConfig(id int64, userId int64) error
 	GetUserNotificationConfig(id int64, userId int64) (models.NotificationConfig, error)
+	UpdateServersPasswords() error
 }
 
 type service struct {
@@ -575,4 +577,48 @@ func (s *service) GetUserNotificationConfig(id int64, userId int64) (models.Noti
 	}
 
 	return notificationConfig, nil
+}
+
+func (s *service) UpdateServersPasswords() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id,password FROM servers`)
+
+	if err != nil {
+		slog.Error("error in query", err)
+		return err
+	}
+
+	defer rows.Close()
+
+	// var servers []models.UpdateServer
+	for rows.Next() {
+		var server models.UpdateServer
+		err := rows.Scan(&server.ID, &server.Password)
+		//	err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.Label, &server.Active, &server.CreatedAt, &server.UpdatedAt)
+		if err != nil {
+			slog.Error("error scaning rows", "error", err)
+			return err
+		}
+
+		hashedPassowrd, err := utils.Encrypt(server.Password)
+		if err != nil {
+			slog.Error("error hashing password", "error", err)
+			continue
+		}
+		fmt.Println("server.Password", server.Password)
+		fmt.Println("hashedpassword", hashedPassowrd)
+		fmt.Println("ID", server.ID)
+		_, err = s.db.ExecContext(ctx, "UPDATE servers SET password = ? WHERE id = ?", hashedPassowrd, server.ID)
+
+		if err != nil {
+			slog.Error("error saving in db", "error", err)
+		}
+		//	servers = append(servers, server)
+	}
+
+	//	fmt.Println("servers", servers)
+
+	return nil
 }

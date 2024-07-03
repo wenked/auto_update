@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,7 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func compareHashPassword(password, hash string) bool {
+func CompareHashPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
@@ -24,6 +25,7 @@ type jwtCustomClaims struct {
 }
 
 func (s *Server) loginHandler(c echo.Context) error {
+	jwtSecret := os.Getenv("SECRET_JWT")
 	session := new(models.LoginRequest)
 
 	if err := c.Bind(session); err != nil {
@@ -34,11 +36,11 @@ func (s *Server) loginHandler(c echo.Context) error {
 	user, err := s.db.GetUserByEmail(session.Email)
 	fmt.Println(user, "user")
 	if err != nil {
-		slog.Error("error getting user", err)
+		slog.Error("error getting user", "error", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid email or password"})
 	}
 
-	if !compareHashPassword(session.Password, user.Password) {
+	if !CompareHashPassword(session.Password, user.Password) {
 		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid email or password"})
 	}
 
@@ -52,9 +54,9 @@ func (s *Server) loginHandler(c echo.Context) error {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	t, err := token.SignedString([]byte("secret"))
+	t, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		slog.Error("error signing token", err)
+		slog.Error("error signing token", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 

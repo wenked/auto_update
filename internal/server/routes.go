@@ -1,7 +1,6 @@
 package server
 
 import (
-	"auto-update/internal/database/models"
 	"auto-update/internal/sse"
 	"auto-update/internal/sshclient"
 	"auto-update/utils"
@@ -100,6 +99,7 @@ func checkMAC(message []byte, messageMAC, key string) bool {
 
 func (s *Server) RegisterRoutes() http.Handler {
 	jwtSecret := os.Getenv("SECRET_JWT")
+
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -113,6 +113,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	e.POST("/github-webhook", s.GithubWebhookHandler)
 	e.GET("/home", s.HomeHandler)
 	e.POST("/test_sse", s.TestSSEHandler)
+	// e.POST("/update_passwords", s.UpdatePasswords)
 
 	apiGroup := e.Group("/api")
 
@@ -413,117 +414,6 @@ func (s *Server) GithubWebhookHandler(c echo.Context) error {
 		"message": "ok",
 	})
 
-}
-
-func (s *Server) CreateServerHandler(c echo.Context) error {
-	fmt.Println("Criando servidor")
-
-	serverinfo := new(ServerInfo)
-
-	if err := c.Bind(serverinfo); err != nil {
-		fmt.Println("error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid request",
-		})
-	}
-
-	fmt.Println("serverinfo", serverinfo.Host)
-	fmt.Println("serverinfo", serverinfo.Password)
-	fmt.Println("serverinfo", serverinfo.Script)
-	fmt.Println("serverinfo", serverinfo.PipelineID)
-	fmt.Println("serverinfo", serverinfo)
-
-	newId, err := s.db.CreateServer(serverinfo.Host, serverinfo.Password, serverinfo.Script, serverinfo.PipelineID, serverinfo.Label)
-
-	if err != nil {
-		fmt.Println("error", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error creating server",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message":   "ok",
-		"server_id": strconv.FormatInt(newId, 10),
-	})
-}
-
-func (s *Server) UpdateServerHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	serverinfo := new(ServerInfo)
-
-	if err := c.Bind(serverinfo); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid request",
-		})
-	}
-
-	updateServer := &models.UpdateServer{
-		ID:         id,
-		Host:       serverinfo.Host,
-		Password:   serverinfo.Password,
-		Script:     serverinfo.Script,
-		Label:      serverinfo.Label,
-		PipelineID: serverinfo.PipelineID,
-		Active:     serverinfo.Active,
-	}
-
-	err = s.db.UpdateServer(updateServer)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error updating server",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "ok",
-	})
-
-}
-
-func (s *Server) DeleteServerHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"message": "invalid id",
-		})
-	}
-
-	err = s.db.DeleteServer(id)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error deleting server",
-		})
-	}
-
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "ok",
-	})
-
-}
-
-func (s *Server) ListServersHandler(c echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-
-	servers, err := s.db.ListServers(id)
-
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error getting servers",
-		})
-	}
-
-	return c.JSON(http.StatusOK, servers)
 }
 
 func (s *Server) HelloWorldHandler(c echo.Context) error {
