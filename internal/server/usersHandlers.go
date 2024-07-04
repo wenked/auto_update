@@ -174,7 +174,7 @@ func (s *Server) DeleteUserHandler(c echo.Context) error {
 	err = s.db.DeleteUser(id)
 
 	if err != nil {
-		slog.Error("error deleting user", err)
+		slog.Error("error deleting user", "error", err)
 
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -252,4 +252,46 @@ func (s *Server) CreateNotificationConfigHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"id": strId,
 	})
+}
+
+func (s *Server) UpdateNotificationConfigHandler(c echo.Context) error {
+	loggedUser, ok := c.Get("user").(*jwt.Token)
+
+	if !ok {
+		slog.Error("Error getting logged user context")
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+	}
+
+	loggedUserId, err := getLoggedUserId(loggedUser)
+
+	if err != nil {
+		slog.Error("Error getting logged user id ")
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+	}
+
+	stringID := c.Param("id")
+
+	intId, err := strconv.ParseInt(stringID, 10, 64)
+
+	if err != nil {
+		slog.Error("error parsing string id", "error", err)
+
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+	}
+
+	updateNotificationConfig := new(models.NotificationConfig)
+
+	if err := c.Bind(updateNotificationConfig); err != nil {
+		slog.Error("error binding notificationConfig user", "err", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "invalid request fields"})
+	}
+
+	err = s.db.UpdateNotificationConfig(intId, loggedUserId, updateNotificationConfig)
+
+	if err != nil {
+		slog.Error("Error updating notification config", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "notification config updated"})
 }

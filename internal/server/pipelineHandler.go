@@ -2,7 +2,6 @@ package server
 
 import (
 	"auto-update/internal/database/models"
-	"auto-update/internal/sshclient"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -206,7 +205,7 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 	}
 
 	go func() {
-		sshclient.UpdateProductionNew(id, loggedUserId)
+		s.sshclient.UpdateProductionNew(id, loggedUserId)
 	}()
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -226,7 +225,7 @@ func (s *Server) UpdateProductionById(c echo.Context) error {
 	}
 
 	go func() {
-		sshclient.UpdateProductionById(id)
+		s.sshclient.UpdateProductionById(id)
 	}()
 
 	return c.JSON(http.StatusOK, map[string]string{

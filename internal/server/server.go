@@ -10,15 +10,17 @@ import (
 	"auto-update/internal/database"
 	"auto-update/internal/queue"
 	"auto-update/internal/sse"
+	"auto-update/internal/sshclient"
 
 	_ "github.com/joho/godotenv/autoload"
 )
 
 type Server struct {
-	port  int
-	db    database.Service
-	queue *queue.UpdateQueue
-	hub   *sse.Hub
+	port      int
+	db        database.Service
+	queue     *queue.UpdateQueue
+	hub       *sse.Hub
+	sshclient *sshclient.SshClientService
 }
 
 func NewServer(queue *queue.UpdateQueue) *http.Server {
@@ -33,10 +35,11 @@ func NewServer(queue *queue.UpdateQueue) *http.Server {
 	//}
 
 	NewServer := &Server{
-		port:  port,
-		db:    database.GetService(),
-		queue: queue,
-		hub:   hub,
+		port:      port,
+		db:        database.GetService(),
+		queue:     queue,
+		hub:       hub,
+		sshclient: sshclient.NewSshClientService(),
 	}
 
 	// Declare Server config

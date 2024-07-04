@@ -524,25 +524,25 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 	defer cancel()
 
 	if config.Name != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET name = ? WHERE user_id = ?`, config.Name, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE  notification_config SET name = ? WHERE id = ? and user_id = ?`, config.Name, id, userId)
 		if err != nil {
-			slog.Error("error update notification config id", err)
+			slog.Error("error update notification config id", "error", err)
 			return err
 		}
 	}
 
 	if config.Number != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET number = ? WHERE user_id = ?`, config.Number, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE  notification_config SET number = ? WHERE id = ? and user_id = ?`, config.Number, id, userId)
 		if err != nil {
-			slog.Error("error update notification config id", err)
+			slog.Error("error update notification config id", "error", err)
 			return err
 		}
 	}
 
 	if config.Type != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE from notification_config SET type = ? WHERE user_id = ?`, config.Type, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET type = ? WHERE id = ? and user_id = ?`, config.Type, id, userId)
 		if err != nil {
-			slog.Error("error update notification config id", err)
+			slog.Error("error update notification config id", "error", err)
 			return err
 		}
 	}
@@ -616,7 +616,7 @@ func (s *service) UpdateServersPasswords() error {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,password FROM servers`)
 
 	if err != nil {
-		slog.Error("error in query", err)
+		slog.Error("error in query", "err", err)
 		return err
 	}
 

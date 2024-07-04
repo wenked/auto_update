@@ -19,6 +19,16 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type SshClient interface {
+	UpdateRepository(options *UpdateOptions) error
+	UpdateProductionNew(pipeline_id int64, userId int64) error
+	UpdateProductionById(id int64) error
+}
+
+type SshClientService struct {
+	db database.Service
+}
+
 type ServerInfo struct {
 	Host     string
 	Password string
@@ -33,6 +43,12 @@ type UpdateOptions struct {
 type ErrorMessage struct {
 	Label  string
 	Reason string
+}
+
+func NewSshClientService() *SshClientService {
+	return &SshClientService{
+		db: database.GetService(),
+	}
 }
 
 func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
@@ -51,7 +67,7 @@ func verifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	return goph.AddKnownHost(host, remote, key, "")
 }
 
-func UpdateRepository(options *UpdateOptions) error {
+func (s *SshClientService) UpdateRepository(options *UpdateOptions) error {
 	fmt.Println("Atualizando repositório no servidor update com id: ", options.ID)
 	auth := goph.Password(os.Getenv("SSH_PASSWORD"))
 
@@ -64,7 +80,6 @@ func UpdateRepository(options *UpdateOptions) error {
 	})
 
 	if err != nil {
-
 		slog.Error("error ao conectar com o servidor", "error", err)
 		return err
 	}
@@ -118,16 +133,14 @@ func UpdateRepository(options *UpdateOptions) error {
 	err = database.GetService().UpdateStatusAndMessage(options.ID, "success", slicedMessage)
 
 	if err != nil {
-		fmt.Println("error ao atualizar status do update", err)
-		slog.Error("error ao atualizar status do update", err)
+		slog.Error("error ao atualizar status do update", "error", err)
 	}
 
 	// sse.GetHub().Broadcast <- "Atualização realizada com sucesso"
 	return nil
 }
 
-func UpdateProductionNew(pipeline_id int64, userId int64) error {
-
+func (s *SshClientService) UpdateProductionNew(pipeline_id int64, userId int64) error {
 	slog.Info("Atualizando repositório no servidor de produção")
 	db := database.GetService()
 
@@ -247,7 +260,7 @@ func UpdateProductionNew(pipeline_id int64, userId int64) error {
 	return nil
 }
 
-func UpdateProductionById(id int64) error {
+func (s *SshClientService) UpdateProductionById(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
 	defer cancel()
 

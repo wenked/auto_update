@@ -10,6 +10,8 @@ type UpdateQueue struct {
 	workingChannel chan bool
 }
 
+var sshClientService = sshclient.NewSshClientService()
+
 // NewupdateQueue is a function to create new email queue
 func NewUpdateQueue() *UpdateQueue {
 	updateChannel := make(chan *sshclient.UpdateOptions, 100)
@@ -32,7 +34,7 @@ func (e *UpdateQueue) Work() {
 			e.workingChannel <- true
 
 			fmt.Println("testeeeeeee", id)
-			sshclient.UpdateRepository(id)
+			sshClientService.UpdateRepository(id)
 			fmt.Println("Finish queue worker updating repository")
 
 			<-e.workingChannel

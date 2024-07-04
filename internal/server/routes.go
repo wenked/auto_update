@@ -135,6 +135,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	usersGroupAuth.PUT("/update/:id", s.UpdateUserHandler)
 	usersGroupAuth.DELETE("/delete/:id", s.UpdateUserHandler)
 	usersGroupAuth.POST("/create_notification", s.CreateNotificationConfigHandler)
+	usersGroupAuth.POST("/update_notification/:id", s.UpdateNotificationConfigHandler)
+
 	// usersGroupAuth.GET("/list_users", s.ListUsersHandler)
 
 	serverGroup.POST("/create", s.CreateServerHandler)
