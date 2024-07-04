@@ -3,7 +3,7 @@ package sshclient
 import (
 	"auto-update/internal/database"
 	"auto-update/internal/database/models"
-	whatsapp "auto-update/internal/sendNotification"
+	whatsapp "auto-update/internal/notifications"
 	"auto-update/internal/sse"
 	"auto-update/utils"
 	"context"
@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -127,21 +126,29 @@ func UpdateRepository(options *UpdateOptions) error {
 	return nil
 }
 
-func UpdateProductionNew(pipeline_id int64) error {
+func UpdateProductionNew(pipeline_id int64, userId int64) error {
 
 	slog.Info("Atualizando repositório no servidor de produção")
+	db := database.GetService()
 
-	servers, err := database.GetService().ListServers(pipeline_id)
+	pipeline, err := db.GetUserPipelineById(pipeline_id, userId)
 
 	if err != nil {
+		slog.Error("error finding pipeline", "error", err)
+		return err
+	}
 
+	servers, err := db.ListServers(pipeline_id)
+
+	notificationService := whatsapp.NewNotificationService()
+
+	if err != nil {
 		slog.Error("error ao buscar servidores", "error", err)
 		return err
 	}
 
 	errors := make([]ErrorMessage, 0)
 
-	// wait group
 	var wg sync.WaitGroup
 
 	for _, server := range servers {
@@ -192,7 +199,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 				// run script
 
 				out, err := client.Run(server.Script)
-				// out, err := client.Run("ls -a")
+				//out, err := client.Run("ls -a")
 
 				message := string(out)
 
@@ -221,7 +228,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 	var msg strings.Builder
 
-	msg.WriteString(fmt.Sprintf("Atualização realizada com sucesso pipeline: *%s*", strconv.FormatInt(pipeline_id, 10)))
+	msg.WriteString(fmt.Sprintf("Atualização realizada com sucesso na pipeline: *%s*", pipeline.Name))
 
 	if len(errors) > 0 {
 		msg.WriteString("\n\nErros encontrados nos servidores:\n")
@@ -231,7 +238,7 @@ func UpdateProductionNew(pipeline_id int64) error {
 
 	}
 	fmt.Println(msg.String())
-	err = whatsapp.SendNotification(msg.String())
+	err = notificationService.SendWhatsappMessage(msg.String(), userId)
 
 	if err != nil {
 		slog.Error("error ao enviar notificação", "error", err)

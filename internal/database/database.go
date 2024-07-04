@@ -40,6 +40,7 @@ type Service interface {
 	UpdateNotificationConfig(id int64, userId int64, notificationConfig *models.NotificationConfig) error
 	DeleteNotificationConfig(id int64, userId int64) error
 	GetUserNotificationConfig(id int64, userId int64) (models.NotificationConfig, error)
+	GetUserNotificationByType(userId int64, notificationType string) ([]models.NotificationConfig, error)
 	UpdateServersPasswords() error
 }
 
@@ -366,7 +367,7 @@ func (s *service) GetUserPipelineById(pipeline_id int64, user_id int64) (models.
 	var pipeline models.Pipeline
 	err := row.Scan(&pipeline.ID, &pipeline.Name, &pipeline.CreatedAt, &pipeline.UpdatedAt, &pipeline.UserID)
 	if err != nil {
-		slog.Error("error in user pipeline query", err)
+		slog.Error("error in user pipeline query", "error", err)
 		return models.Pipeline{}, err
 	}
 
@@ -502,16 +503,16 @@ func (s *service) CreateNotificationConfig(config *models.NotificationConfig) (i
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_conig (type,name,number,user_id) VALUES (?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_config (type,name,number,user_id) VALUES (?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID)
 	if err != nil {
-		slog.Error("error inserting notification config", err)
+		slog.Error("error inserting notification config", "error", err)
 		return 0, err
 	}
 
 	id, err := result.LastInsertId()
 
 	if err != nil {
-		slog.Error("error getting notification config id", err)
+		slog.Error("error getting notification config id", "error", err)
 		return 0, err
 	}
 
@@ -577,6 +578,35 @@ func (s *service) GetUserNotificationConfig(id int64, userId int64) (models.Noti
 	}
 
 	return notificationConfig, nil
+}
+
+func (s *service) GetUserNotificationByType(userId int64, notificationType string) ([]models.NotificationConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	var notificationConfigs []models.NotificationConfig
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM notification_config WHERE user_id = ? and type = ?`, userId, notificationType)
+
+	if err != nil {
+		slog.Error("error in GetUserNotificationByType query", "error", err)
+		return notificationConfigs, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var notificationConfig models.NotificationConfig
+
+		err := rows.Scan(&notificationConfig.ID, &notificationConfig.Type, &notificationConfig.Name, &notificationConfig.Number, &notificationConfig.UserID, &notificationConfig.CreatedAt, &notificationConfig.UpdatedAt)
+		if err != nil {
+			slog.Error("error scaning rows", "error", err)
+			return notificationConfigs, err
+		}
+
+		notificationConfigs = append(notificationConfigs, notificationConfig)
+	}
+
+	return notificationConfigs, nil
 }
 
 func (s *service) UpdateServersPasswords() error {

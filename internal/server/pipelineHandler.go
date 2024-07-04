@@ -198,7 +198,7 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 	fmt.Println(userPipeline, "userPipeline")
 
 	if err != nil {
-		slog.Error("Pipeline not found", err)
+		slog.Error("Pipeline not found", "error", err)
 
 		return c.JSON(http.StatusNotFound, map[string]string{
 			"message": "user pipeline not found",
@@ -206,7 +206,7 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 	}
 
 	go func() {
-		sshclient.UpdateProductionNew(id)
+		sshclient.UpdateProductionNew(id, loggedUserId)
 	}()
 
 	return c.JSON(http.StatusOK, map[string]string{

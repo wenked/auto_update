@@ -229,5 +229,27 @@ func (s *Server) CreateNotificationConfigHandler(c echo.Context) error {
 
 	fmt.Println(loggedUserId)
 
-	return nil
+	newNotificationConfig := new(models.NotificationConfig)
+
+	if err := c.Bind(newNotificationConfig); err != nil {
+		slog.Error("error binding notificationConfig user", "err", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "invalid request fields"})
+	}
+
+	newNotificationConfig.UserID = loggedUserId
+
+	id, err := s.db.CreateNotificationConfig(newNotificationConfig)
+
+	if err != nil {
+		slog.Error("Error creating notification conifg", "error", err)
+
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"message": "error creating notificationConfig",
+		})
+	}
+
+	strId := strconv.FormatInt(id, 10)
+	return c.JSON(http.StatusOK, map[string]string{
+		"id": strId,
+	})
 }
