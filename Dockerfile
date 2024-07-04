@@ -1,9 +1,6 @@
 # Start from the latest golang base image
 FROM golang:latest
 
-# Add Maintainer Info
-LABEL maintainer="Your Name <youremail@domain.com>"
-
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
@@ -20,8 +17,7 @@ COPY . .
 # Create .ssh directory and known_hosts file
 RUN mkdir -p /root/.ssh && touch /root/.ssh/known_hosts
 # Build the Go app
-RUN make build
-
+RUN go build -o /main cmd/api/main.go
 
 # Command to run the executable
 CMD ["/main"]
