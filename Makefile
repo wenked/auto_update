@@ -52,7 +52,7 @@ docker-down:
 # Test the application
 test:
 	@echo "Testing..."
-	@go test ./tests -v
+	@go test ./tests/...  ./internal/repositories/... -v
 
 # Clean the binary
 clean:

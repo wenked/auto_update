@@ -28,7 +28,7 @@ type Service interface {
 	CreatePipeline(name string, id int64) (int64, error)
 	UpdatePipeline(opts *models.UpdatePipeline, user_id int64) error
 	DeletePipeline(id int64, user_id int64) error
-	ListPipelines(user_id int64) ([]models.UpdatePipeline, error)
+	ListPipelines(user_id int64) ([]models.Pipeline, error)
 	GetUserPipelineById(pipeline_id int64, user_id int64) (models.Pipeline, error)
 	CreateUser(name string, email string, password string) (int64, error)
 	UpdateUser(opts *models.User) error
@@ -43,6 +43,8 @@ type Service interface {
 	GetUserNotificationByType(userId int64, notificationType string) ([]models.NotificationConfig, error)
 	UpdateServersPasswords() error
 }
+
+type ScanFunc[T any] func(*sql.Rows) (T, error)
 
 type service struct {
 	db *sql.DB
@@ -82,6 +84,24 @@ var s = New()
 
 func GetService() Service {
 	return s
+}
+
+func ScanRows[T any](rows *sql.Rows, scanFunc ScanFunc[T]) ([]T, error) {
+	var items []T
+
+	for rows.Next() {
+		item, err := scanFunc(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }
 
 func (s *service) Health() map[string]string {
@@ -231,10 +251,10 @@ func (s *service) GetServer(id int64) (*models.UpdateServer, error) {
 
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM servers WHERE id = ?`, id)
 
-	var server models.UpdateServer
-	err := row.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
+	server, err := models.ScanRowUpdateServer(row)
+
 	if err != nil {
-		fmt.Println("error in query", err)
+		slog.Error("error in user server query", "error", err)
 		return nil, err
 	}
 
@@ -267,16 +287,11 @@ func (s *service) ListServers(pipeline_id int64) ([]models.UpdateServer, error) 
 
 	defer rows.Close()
 
-	var servers []models.UpdateServer
-	for rows.Next() {
-		var server models.UpdateServer
-		err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.CreatedAt, &server.UpdatedAt, &server.Label, &server.Active)
-		if err != nil {
-			fmt.Println("error", err)
-			return nil, err
-		}
+	servers, err := ScanRows(rows, models.ScanUpdateServer)
 
-		servers = append(servers, server)
+	if err != nil {
+		slog.Error("error scaning servers rows", "error", err)
+		return nil, err
 	}
 
 	fmt.Println("servers", servers)
@@ -330,7 +345,7 @@ func (s *service) DeletePipeline(id int64, user_id int64) error {
 	return nil
 }
 
-func (s *service) ListPipelines(user_id int64) ([]models.UpdatePipeline, error) {
+func (s *service) ListPipelines(user_id int64) ([]models.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -343,16 +358,11 @@ func (s *service) ListPipelines(user_id int64) ([]models.UpdatePipeline, error) 
 
 	defer rows.Close()
 
-	var pipelines []models.UpdatePipeline
-	for rows.Next() {
-		var pipeline models.UpdatePipeline
-		err := rows.Scan(&pipeline.ID, &pipeline.Name)
-		if err != nil {
-			fmt.Println("error", err)
-			return nil, err
-		}
+	pipelines, err := ScanRows(rows, models.ScanPipeline)
 
-		pipelines = append(pipelines, pipeline)
+	if err != nil {
+		slog.Error("error scaning pipeline rows", "error", err)
+		return nil, err
 	}
 
 	return pipelines, nil
@@ -364,8 +374,8 @@ func (s *service) GetUserPipelineById(pipeline_id int64, user_id int64) (models.
 
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM pipelines WHERE id = ? and user_id = ?`, pipeline_id, user_id)
 
-	var pipeline models.Pipeline
-	err := row.Scan(&pipeline.ID, &pipeline.Name, &pipeline.CreatedAt, &pipeline.UpdatedAt, &pipeline.UserID)
+	pipeline, err := models.ScanRowPipeline(row)
+
 	if err != nil {
 		slog.Error("error in user pipeline query", "error", err)
 		return models.Pipeline{}, err
@@ -431,7 +441,7 @@ func (s *service) DeleteUser(id int64) error {
 
 	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
 	if err != nil {
-		slog.Error("error in delete", err)
+		slog.Error("error in delete", "error", err)
 		return err
 	}
 
@@ -444,10 +454,9 @@ func (s *service) GetUserByEmail(email string) (models.User, error) {
 
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE email = ?`, email)
 
-	var user models.User
-	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	user, err := models.ScanRowUser(row)
 	if err != nil {
-		slog.Error("error in query", err)
+		slog.Error("error in select user query", "error", err)
 		return models.User{}, err
 	}
 
@@ -460,10 +469,9 @@ func (s *service) GetUserByID(id int64) (models.User, error) {
 
 	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE id = ?`, id)
 
-	var user models.User
-	err := row.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	user, err := models.ScanRowUser(row)
 	if err != nil {
-		slog.Error("error in query", err)
+		slog.Error("error in select user query", "error", err)
 		return models.User{}, err
 	}
 
@@ -476,24 +484,19 @@ func (s *service) ListUsers(page int64, limit int64) ([]models.User, error) {
 
 	offset := (page - 1) * limit
 	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users LIMIT ? OFFSET ?`, page, offset)
-
+	var users []models.User
 	if err != nil {
-		slog.Error("error in query", err)
-		return nil, err
+		slog.Error("error in select users query", "error", err)
+		return users, err
 	}
 
 	defer rows.Close()
 
-	var users []models.User
-	for rows.Next() {
-		var user models.User
-		err := rows.Scan(&user.ID, &user.Name, &user.Password, &user.Email, &user.CreatedAt, &user.UpdatedAt)
-		if err != nil {
-			slog.Error("error", err)
-			return nil, err
-		}
+	users, err = ScanRows(rows, models.ScanUser)
 
-		users = append(users, user)
+	if err != nil {
+		slog.Error("error scaning users", "error", nil)
+		return users, err
 	}
 
 	return users, nil
@@ -557,7 +560,7 @@ func (s *service) DeleteNotificationConfig(id int64, userId int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE from notification_config WHERE id = ? and user_id = ? `, id, userId)
 
 	if err != nil {
-		slog.Error("Error deleting notification config", err)
+		slog.Error("Error deleting notification config", "error", err)
 		return err
 	}
 
@@ -571,9 +574,11 @@ func (s *service) GetUserNotificationConfig(id int64, userId int64) (models.Noti
 	row := s.db.QueryRowContext(ctx, `SELECT * from notification_config where id = ? and user_id = ?`, id, userId)
 
 	var notificationConfig models.NotificationConfig
-	err := row.Scan(&notificationConfig.ID, &notificationConfig.Name, &notificationConfig.Number, &notificationConfig.Type, &notificationConfig.CreatedAt, &notificationConfig.UpdatedAt)
+
+	notificationConfig, err := models.ScanRowNotificationConfig(row)
+
 	if err != nil {
-		slog.Error("error in GetUserNotificationConfig query", err)
+		slog.Error("error in GetUserNotificationConfig query", "error", err)
 		return models.NotificationConfig{}, err
 	}
 
@@ -594,16 +599,11 @@ func (s *service) GetUserNotificationByType(userId int64, notificationType strin
 
 	defer rows.Close()
 
-	for rows.Next() {
-		var notificationConfig models.NotificationConfig
+	notificationConfigs, err = ScanRows(rows, models.ScanNotificationConfig)
 
-		err := rows.Scan(&notificationConfig.ID, &notificationConfig.Type, &notificationConfig.Name, &notificationConfig.Number, &notificationConfig.UserID, &notificationConfig.CreatedAt, &notificationConfig.UpdatedAt)
-		if err != nil {
-			slog.Error("error scaning rows", "error", err)
-			return notificationConfigs, err
-		}
-
-		notificationConfigs = append(notificationConfigs, notificationConfig)
+	if err != nil {
+		slog.Error("error scaning rows", "error", err)
+		return notificationConfigs, err
 	}
 
 	return notificationConfigs, nil

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -94,6 +95,7 @@ func (ns *NotificationService) SendWhatsappMessage(message string, userId int64)
 
 	notificationConfigs, err := ns.db.GetUserNotificationByType(userId, "whatsapp")
 
+	fmt.Println(notificationConfigs, "configs")
 	if err != nil {
 		slog.Error("error getting whatsapp notification configs", "error", err)
 		return err
