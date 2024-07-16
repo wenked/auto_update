@@ -7,6 +7,7 @@ type User struct {
 	Name      string `json:"name"`
 	Password  string `json:"password"`
 	Email     string `json:"email"`
+	CompanyID int64  `json:"company_id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
@@ -32,12 +33,12 @@ type UpdateUser struct {
 
 func ScanUser(rows *sql.Rows) (User, error) {
 	var n User
-	err := rows.Scan(&n.ID, &n.Name, &n.Password, &n.Email, &n.CreatedAt, &n.UpdatedAt)
+	err := rows.Scan(&n.ID, &n.Name, &n.Password, &n.Email, &n.CreatedAt, &n.UpdatedAt, &n.CompanyID)
 	return n, err
 }
 
 func ScanRowUser(row *sql.Row) (User, error) {
 	var n User
-	err := row.Scan(&n.ID, &n.Name, &n.Password, &n.Email, &n.CreatedAt, &n.UpdatedAt)
+	err := row.Scan(&n.ID, &n.Name, &n.Password, &n.Email, &n.CreatedAt, &n.UpdatedAt, &n.CompanyID)
 	return n, err
 }

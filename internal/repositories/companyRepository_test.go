@@ -4,7 +4,6 @@ import (
 	"auto-update/internal/database/models"
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -100,7 +99,7 @@ func TestListCompanies(t *testing.T) {
 		_, err := repo.CreateCompany(context.Background(), company)
 		assert.NoError(t, err)
 	}
-	fmt.Println("bolamose")
+
 	result, err := repo.ListCompanies(context.Background(), 1, 2)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(result))
