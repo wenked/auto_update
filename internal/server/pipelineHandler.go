@@ -192,6 +192,7 @@ func (s *Server) UpdateProdPipelineHandler(c echo.Context) error {
 		})
 	}
 
+	fmt.Println("loggeduserId", loggedUserId)
 	userPipeline, err := s.db.GetUserPipelineById(id, loggedUserId)
 
 	fmt.Println(userPipeline, "userPipeline")

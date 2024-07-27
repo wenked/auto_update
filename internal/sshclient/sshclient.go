@@ -3,7 +3,7 @@ package sshclient
 import (
 	"auto-update/internal/database"
 	"auto-update/internal/database/models"
-	whatsapp "auto-update/internal/notifications"
+	notification "auto-update/internal/notifications"
 	"auto-update/internal/sse"
 	"auto-update/utils"
 	"context"
@@ -153,10 +153,17 @@ func (s *SshClientService) UpdateProductionNew(pipeline_id int64, userId int64) 
 
 	servers, err := db.ListServers(pipeline_id)
 
-	notificationService := whatsapp.NewNotificationService()
+	notificationService := notification.NewNotificationService()
 
 	if err != nil {
 		slog.Error("error ao buscar servidores", "error", err)
+		return err
+	}
+
+	err = notificationService.SendAllNotifications(fmt.Sprintf("Atualização iniciada na pipeline: *%s*", pipeline.Name), userId, "yellow")
+
+	if err != nil {
+		slog.Error("error ao enviar notificação", "error", err)
 		return err
 	}
 
@@ -176,7 +183,7 @@ func (s *SshClientService) UpdateProductionNew(pipeline_id int64, userId int64) 
 			done := make(chan bool)
 
 			go func() {
-				fmt.Println("Atualizando repositório no servidor de produção", server.Label)
+				slog.Info("Atualizando repositório no servidor de produção", server.Label)
 
 				decryptedPassword, err := utils.Decrypt(server.Password)
 
@@ -240,7 +247,7 @@ func (s *SshClientService) UpdateProductionNew(pipeline_id int64, userId int64) 
 	wg.Wait()
 
 	var msg strings.Builder
-
+	color := "green"
 	msg.WriteString(fmt.Sprintf("Atualização realizada com sucesso na pipeline: *%s*", pipeline.Name))
 
 	if len(errors) > 0 {
@@ -248,10 +255,11 @@ func (s *SshClientService) UpdateProductionNew(pipeline_id int64, userId int64) 
 		for _, e := range errors {
 			msg.WriteString(fmt.Sprintf("```*%s* - %s```\n", e.Label, e.Reason))
 		}
-
+		color = "red"
 	}
+
 	fmt.Println(msg.String())
-	err = notificationService.SendWhatsappMessage(msg.String(), userId)
+	err = notificationService.SendAllNotifications(msg.String(), userId, color)
 
 	if err != nil {
 		slog.Error("error ao enviar notificação", "error", err)

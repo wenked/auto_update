@@ -14,6 +14,8 @@ import (
 )
 
 func CompareHashPassword(password, hash string) bool {
+	fmt.Println("hash", hash)
+	fmt.Println("password", password)
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }

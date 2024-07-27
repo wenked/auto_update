@@ -1,10 +1,7 @@
 package server
 
 import (
-	"auto-update/internal/sse"
 	"auto-update/internal/sshclient"
-	"auto-update/utils"
-	"auto-update/views"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -106,13 +103,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	e.Static("/static", "static")
 	e.Static("/css", "css")
-	e.GET("/sse", s.sseHandler)
 	e.GET("/", s.HelloWorldHandler)
 	e.GET("/health", s.healthHandler)
 	e.GET("/updates", s.GetUpdatesHandler)
 	e.POST("/github-webhook", s.GithubWebhookHandler)
-	e.GET("/home", s.HomeHandler)
-	e.POST("/test_sse", s.TestSSEHandler)
 	// e.POST("/update_passwords", s.UpdatePasswords)
 
 	apiGroup := e.Group("/api")
@@ -165,35 +159,6 @@ func (s *Server) RegisterRoutes() http.Handler {
 	// e.POST("/update_production/:id", s.UpdateProductionById, checkSecretKeyMiddleware)
 
 	return e
-}
-
-func (s *Server) TestSSEHandler(c echo.Context) error {
-	s.hub.Broadcast <- "update"
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "update",
-	})
-}
-
-func (s *Server) sseHandler(c echo.Context) error {
-	client := sse.NewClient(c.Response().Writer)
-	s.hub.AddClient <- client
-	client.RunSSE()
-
-	return nil
-}
-
-func (s *Server) HomeHandler(c echo.Context) error {
-	fmt.Println("Home handler called")
-	rows, err := s.db.GetUpdates(100, 0)
-
-	if err != nil {
-		slog.Error("Error getting updates")
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"message": "error getting updates",
-		})
-	}
-
-	return utils.Render(c, views.Index(rows))
 }
 
 func (s *Server) GetUpdatesHandler(c echo.Context) error {

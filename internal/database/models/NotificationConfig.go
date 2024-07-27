@@ -10,16 +10,17 @@ type NotificationConfig struct {
 	UserID    int64  `json:"user_id"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+	Url       string `json:"url"`
 }
 
 func ScanNotificationConfig(rows *sql.Rows) (NotificationConfig, error) {
 	var n NotificationConfig
-	err := rows.Scan(&n.ID, &n.Type, &n.Name, &n.Number, &n.UserID, &n.CreatedAt, &n.UpdatedAt)
+	err := rows.Scan(&n.ID, &n.Type, &n.Name, &n.Number, &n.UserID, &n.CreatedAt, &n.UpdatedAt, &n.Url)
 	return n, err
 }
 
 func ScanRowNotificationConfig(row *sql.Row) (NotificationConfig, error) {
 	var n NotificationConfig
-	err := row.Scan(&n.ID, &n.Type, &n.Name, &n.Number, &n.UserID, &n.CreatedAt, &n.UpdatedAt)
+	err := row.Scan(&n.ID, &n.Type, &n.Name, &n.Number, &n.UserID, &n.CreatedAt, &n.UpdatedAt, &n.Url)
 	return n, err
 }

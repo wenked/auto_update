@@ -506,7 +506,7 @@ func (s *service) CreateNotificationConfig(config *models.NotificationConfig) (i
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_config (type,name,number,user_id) VALUES (?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID)
+	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_config (type,name,number,user_id,url) VALUES (?,?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID, config.Url)
 	if err != nil {
 		slog.Error("error inserting notification config", "error", err)
 		return 0, err
@@ -544,6 +544,14 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 
 	if config.Type != "" {
 		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET type = ? WHERE id = ? and user_id = ?`, config.Type, id, userId)
+		if err != nil {
+			slog.Error("error update notification config id", "error", err)
+			return err
+		}
+	}
+
+	if config.Url != "" {
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET url = ? WHERE id = ? and user_id = ?`, config.Url, id, userId)
 		if err != nil {
 			slog.Error("error update notification config id", "error", err)
 			return err
