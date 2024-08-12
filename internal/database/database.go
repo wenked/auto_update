@@ -12,7 +12,7 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
+	_ "github.com/lib/pq"
 )
 
 type Service interface {
@@ -64,16 +64,21 @@ var (
 	dburl = os.Getenv("DB_URL")
 )
 
+var (
+	database = os.Getenv("DB_DATABASE")
+	password = os.Getenv("DB_PASSWORD")
+	username = os.Getenv("DB_USERNAME")
+	port     = os.Getenv("DB_PORT")
+	host     = os.Getenv("DB_HOST")
+)
+
 func New() Service {
-	db, err := sql.Open("libsql", dburl)
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo", host, username, password, database, port)
+
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		slog.Error("error connecting to database", err)
 		log.Fatal(err)
-	}
-
-	_, migration_err := db.Exec(`PRAGMA foreign_keys = ON;`)
-	if migration_err != nil {
-		log.Fatal(migration_err)
 	}
 
 	s := &service{db: db}
@@ -122,13 +127,8 @@ func (s *service) CreateUpdate(pusher_name string, branch string, status string,
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO updates (pusher_name, branch, status, message) VALUES (?, ?, ?, ?)`, pusher_name, branch, status, message)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err := result.LastInsertId()
-
+	var id int64
+	err := s.db.QueryRowContext(ctx, `INSERT INTO updates (pusher_name, branch, status, message) VALUES ($1, $2, $3, $4) RETURNING id`, pusher_name, branch, status, message).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -140,7 +140,7 @@ func (s *service) UpdateStatusAndMessage(id int64, status string, message string
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `UPDATE updates SET status = ?,message = ? WHERE id = ?`, status, message, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE updates SET status = $1, message = $2 WHERE id = $3`, status, message, id)
 	if err != nil {
 		fmt.Println("error in update status and message", err)
 		return err
@@ -150,11 +150,10 @@ func (s *service) UpdateStatusAndMessage(id int64, status string, message string
 }
 
 func (s *service) GetUpdates(limit int, offset int) ([]Update, error) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM updates ORDER BY id DESC, created_at DESC LIMIT ? OFFSET ?`, limit, offset)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM updates ORDER BY id DESC, created_at DESC LIMIT $1 OFFSET $2`, limit, offset)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -182,15 +181,10 @@ func (s *service) CreateServer(host string, password string, script string, pipe
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO servers (host, password, script,pipeline_id,label) VALUES (?, ?, ? , ?, ?)`, host, password, script, pipeline_id, label)
+	var id int64
+	err := s.db.QueryRowContext(ctx, `INSERT INTO servers (host, password, script, pipeline_id, label) VALUES ($1, $2, $3, $4, $5) RETURNING id`, host, password, script, pipeline_id, label).Scan(&id)
 	if err != nil {
 		fmt.Println("error in insert", err)
-		return 0, err
-	}
-
-	id, err := result.LastInsertId()
-
-	if err != nil {
 		return 0, err
 	}
 
@@ -202,7 +196,7 @@ func (s *service) UpdateServer(opts *models.UpdateServer) error {
 	defer cancel()
 
 	if opts.Host != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Host = ? WHERE id = ?`, opts.Host, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Host = $1 WHERE id = $2`, opts.Host, opts.ID)
 		if err != nil {
 			fmt.Println("error in update host", err)
 			return err
@@ -210,7 +204,7 @@ func (s *service) UpdateServer(opts *models.UpdateServer) error {
 	}
 
 	if opts.Password != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Password = ? WHERE id = ?`, opts.Password, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET Password = $1 WHERE id = $2`, opts.Password, opts.ID)
 		if err != nil {
 			fmt.Println("error in update password", err)
 			return err
@@ -218,7 +212,7 @@ func (s *service) UpdateServer(opts *models.UpdateServer) error {
 	}
 
 	if opts.Script != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servers SET script = ? WHERE id = ?`, opts.Script, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET script = $1 WHERE id = $2`, opts.Script, opts.ID)
 		if err != nil {
 			fmt.Println("error in update script", err)
 			return err
@@ -226,16 +220,15 @@ func (s *service) UpdateServer(opts *models.UpdateServer) error {
 	}
 
 	if opts.Label != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE servers SET label = ? WHERE id = ?`, opts.Label, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET label = $1 WHERE id = $2`, opts.Label, opts.ID)
 		if err != nil {
 			fmt.Println("error in update label", err)
-
 			return err
 		}
 	}
 
 	if opts.Active {
-		_, err := s.db.ExecContext(ctx, `UPDATE servers SET active = ? WHERE id = ?`, opts.Active, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE servers SET active = $1 WHERE id = $2`, opts.Active, opts.ID)
 		if err != nil {
 			fmt.Println("error in update active", err)
 			return err
@@ -249,7 +242,7 @@ func (s *service) GetServer(id int64) (*models.UpdateServer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * FROM servers WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM servers WHERE id = $1`, id)
 
 	server, err := models.ScanRowUpdateServer(row)
 
@@ -265,7 +258,7 @@ func (s *service) DeleteServer(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = $1`, id)
 	if err != nil {
 		fmt.Println("error in delete", err)
 		return err
@@ -278,7 +271,7 @@ func (s *service) ListServers(pipeline_id int64) ([]models.UpdateServer, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	fmt.Println("pipeline_id", pipeline_id)
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM "servers" WHERE pipeline_id = ? AND active = 1`, pipeline_id)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM "servers" WHERE pipeline_id = $1 AND active = true`, pipeline_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -303,13 +296,8 @@ func (s *service) CreatePipeline(name string, user_id int64) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO pipelines (name,user_id) VALUES (?,?)`, name, user_id)
-	if err != nil {
-		return 0, err
-	}
-
-	id, err := result.LastInsertId()
-
+	var id int64
+	err := s.db.QueryRowContext(ctx, `INSERT INTO pipelines (name, user_id) VALUES ($1, $2) RETURNING id`, name, user_id).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -322,7 +310,7 @@ func (s *service) UpdatePipeline(opts *models.UpdatePipeline, user_id int64) err
 	defer cancel()
 
 	if opts.Name != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE pipelines SET Name = ? WHERE id = ? and user_id = ?`, opts.Name, opts.ID, user_id)
+		_, err := s.db.ExecContext(ctx, `UPDATE pipelines SET Name = $1 WHERE id = $2 and user_id = $3`, opts.Name, opts.ID, user_id)
 		if err != nil {
 			fmt.Println("error in update name", err)
 			return err
@@ -336,7 +324,7 @@ func (s *service) DeletePipeline(id int64, user_id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM pipelines WHERE id = ? and user_id = ?`, id, user_id)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM pipelines WHERE id = $1 and user_id = $2`, id, user_id)
 	if err != nil {
 		fmt.Println("error in delete", err)
 		return err
@@ -349,7 +337,7 @@ func (s *service) ListPipelines(user_id int64) ([]models.Pipeline, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM pipelines WHERE user_id = ?`, user_id)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM pipelines WHERE user_id = $1`, user_id)
 
 	if err != nil {
 		fmt.Println("error in query", err)
@@ -372,7 +360,7 @@ func (s *service) GetUserPipelineById(pipeline_id int64, user_id int64) (models.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * FROM pipelines WHERE id = ? and user_id = ?`, pipeline_id, user_id)
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM pipelines WHERE id = $1 and user_id = $2`, pipeline_id, user_id)
 
 	pipeline, err := models.ScanRowPipeline(row)
 
@@ -382,20 +370,13 @@ func (s *service) GetUserPipelineById(pipeline_id int64, user_id int64) (models.
 	}
 
 	return pipeline, nil
-
 }
-
 func (s *service) CreateUser(name string, email string, password string) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO users (name,email, password) VALUES (?, ?, ?)`, name, email, password)
-
-	if err != nil {
-		return 0, err
-	}
-
-	id, err := result.LastInsertId()
+	var id int64
+	err := s.db.QueryRowContext(ctx, `INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id`, name, email, password).Scan(&id)
 
 	if err != nil {
 		return 0, err
@@ -409,7 +390,7 @@ func (s *service) UpdateUser(opts *models.User) error {
 	defer cancel()
 
 	if opts.Name != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE users SET name = ? WHERE id = ?`, opts.Name, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET name = $1 WHERE id = $2`, opts.Name, opts.ID)
 		if err != nil {
 			slog.Error("error in update name", err)
 			return err
@@ -417,7 +398,7 @@ func (s *service) UpdateUser(opts *models.User) error {
 	}
 
 	if opts.Email != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE users SET email = ? WHERE id = ?`, opts.Email, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET email = $1 WHERE id = $2`, opts.Email, opts.ID)
 		if err != nil {
 			slog.Error("error in update email", err)
 			return err
@@ -425,7 +406,7 @@ func (s *service) UpdateUser(opts *models.User) error {
 	}
 
 	if opts.Password != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE users SET password = ? WHERE id = ?`, opts.Password, opts.ID)
+		_, err := s.db.ExecContext(ctx, `UPDATE users SET password = $1 WHERE id = $2`, opts.Password, opts.ID)
 		if err != nil {
 			slog.Error("error in update password", err)
 			return err
@@ -439,7 +420,7 @@ func (s *service) DeleteUser(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
 	if err != nil {
 		slog.Error("error in delete", "error", err)
 		return err
@@ -452,7 +433,7 @@ func (s *service) GetUserByEmail(email string) (models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE email = ?`, email)
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE email = $1`, email)
 
 	user, err := models.ScanRowUser(row)
 	if err != nil {
@@ -467,7 +448,7 @@ func (s *service) GetUserByID(id int64) (models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM users WHERE id = $1`, id)
 
 	user, err := models.ScanRowUser(row)
 	if err != nil {
@@ -483,7 +464,7 @@ func (s *service) ListUsers(page int64, limit int64) ([]models.User, error) {
 	defer cancel()
 
 	offset := (page - 1) * limit
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users LIMIT ? OFFSET ?`, page, offset)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM users LIMIT $1 OFFSET $2`, limit, offset)
 	var users []models.User
 	if err != nil {
 		slog.Error("error in select users query", "error", err)
@@ -495,7 +476,7 @@ func (s *service) ListUsers(page int64, limit int64) ([]models.User, error) {
 	users, err = ScanRows(rows, models.ScanUser)
 
 	if err != nil {
-		slog.Error("error scaning users", "error", nil)
+		slog.Error("error scanning users", "error", err)
 		return users, err
 	}
 
@@ -506,16 +487,11 @@ func (s *service) CreateNotificationConfig(config *models.NotificationConfig) (i
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result, err := s.db.ExecContext(ctx, `INSERT INTO notification_config (type,name,number,user_id,url) VALUES (?,?,?,?,?)`, config.Type, config.Name, config.Number, config.UserID, config.Url)
+	var id int64
+	err := s.db.QueryRowContext(ctx, `INSERT INTO notification_config (type, name, number, user_id, url) VALUES ($1, $2, $3, $4, $5) RETURNING id`, config.Type, config.Name, config.Number, config.UserID, config.Url).Scan(&id)
+
 	if err != nil {
 		slog.Error("error inserting notification config", "error", err)
-		return 0, err
-	}
-
-	id, err := result.LastInsertId()
-
-	if err != nil {
-		slog.Error("error getting notification config id", "error", err)
 		return 0, err
 	}
 
@@ -527,7 +503,7 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 	defer cancel()
 
 	if config.Name != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE  notification_config SET name = ? WHERE id = ? and user_id = ?`, config.Name, id, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET name = $1 WHERE id = $2 AND user_id = $3`, config.Name, id, userId)
 		if err != nil {
 			slog.Error("error update notification config id", "error", err)
 			return err
@@ -535,7 +511,7 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 	}
 
 	if config.Number != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE  notification_config SET number = ? WHERE id = ? and user_id = ?`, config.Number, id, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET number = $1 WHERE id = $2 AND user_id = $3`, config.Number, id, userId)
 		if err != nil {
 			slog.Error("error update notification config id", "error", err)
 			return err
@@ -543,7 +519,7 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 	}
 
 	if config.Type != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET type = ? WHERE id = ? and user_id = ?`, config.Type, id, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET type = $1 WHERE id = $2 AND user_id = $3`, config.Type, id, userId)
 		if err != nil {
 			slog.Error("error update notification config id", "error", err)
 			return err
@@ -551,7 +527,7 @@ func (s *service) UpdateNotificationConfig(id int64, userId int64, config *model
 	}
 
 	if config.Url != "" {
-		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET url = ? WHERE id = ? and user_id = ?`, config.Url, id, userId)
+		_, err := s.db.ExecContext(ctx, `UPDATE notification_config SET url = $1 WHERE id = $2 AND user_id = $3`, config.Url, id, userId)
 		if err != nil {
 			slog.Error("error update notification config id", "error", err)
 			return err
@@ -565,7 +541,7 @@ func (s *service) DeleteNotificationConfig(id int64, userId int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := s.db.ExecContext(ctx, `DELETE from notification_config WHERE id = ? and user_id = ? `, id, userId)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM notification_config WHERE id = $1 AND user_id = $2`, id, userId)
 
 	if err != nil {
 		slog.Error("Error deleting notification config", "error", err)
@@ -579,9 +555,7 @@ func (s *service) GetUserNotificationConfig(id int64, userId int64) (models.Noti
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	row := s.db.QueryRowContext(ctx, `SELECT * from notification_config where id = ? and user_id = ?`, id, userId)
-
-	var notificationConfig models.NotificationConfig
+	row := s.db.QueryRowContext(ctx, `SELECT * FROM notification_config WHERE id = $1 AND user_id = $2`, id, userId)
 
 	notificationConfig, err := models.ScanRowNotificationConfig(row)
 
@@ -597,21 +571,20 @@ func (s *service) GetUserNotificationByType(userId int64, notificationType strin
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	var notificationConfigs []models.NotificationConfig
-	rows, err := s.db.QueryContext(ctx, `SELECT * FROM notification_config WHERE user_id = ? and type = ?`, userId, notificationType)
+	rows, err := s.db.QueryContext(ctx, `SELECT * FROM notification_config WHERE user_id = $1 AND type = $2`, userId, notificationType)
 
 	if err != nil {
 		slog.Error("error in GetUserNotificationByType query", "error", err)
-		return notificationConfigs, err
+		return nil, err
 	}
 
 	defer rows.Close()
 
-	notificationConfigs, err = ScanRows(rows, models.ScanNotificationConfig)
+	notificationConfigs, err := ScanRows(rows, models.ScanNotificationConfig)
 
 	if err != nil {
-		slog.Error("error scaning rows", "error", err)
-		return notificationConfigs, err
+		slog.Error("error scanning rows", "error", err)
+		return nil, err
 	}
 
 	return notificationConfigs, nil
@@ -621,7 +594,7 @@ func (s *service) UpdateServersPasswords() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(ctx, `SELECT id,password FROM servers`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, password FROM servers`)
 
 	if err != nil {
 		slog.Error("error in query", "err", err)
@@ -630,33 +603,28 @@ func (s *service) UpdateServersPasswords() error {
 
 	defer rows.Close()
 
-	// var servers []models.UpdateServer
 	for rows.Next() {
 		var server models.UpdateServer
 		err := rows.Scan(&server.ID, &server.Password)
-		//	err := rows.Scan(&server.ID, &server.Host, &server.Password, &server.Script, &server.PipelineID, &server.Label, &server.Active, &server.CreatedAt, &server.UpdatedAt)
 		if err != nil {
-			slog.Error("error scaning rows", "error", err)
+			slog.Error("error scanning rows", "error", err)
 			return err
 		}
 
-		hashedPassowrd, err := utils.Encrypt(server.Password)
+		hashedPassword, err := utils.Encrypt(server.Password)
 		if err != nil {
 			slog.Error("error hashing password", "error", err)
 			continue
 		}
 		fmt.Println("server.Password", server.Password)
-		fmt.Println("hashedpassword", hashedPassowrd)
+		fmt.Println("hashedPassword", hashedPassword)
 		fmt.Println("ID", server.ID)
-		_, err = s.db.ExecContext(ctx, "UPDATE servers SET password = ? WHERE id = ?", hashedPassowrd, server.ID)
+		_, err = s.db.ExecContext(ctx, "UPDATE servers SET password = $1 WHERE id = $2", hashedPassword, server.ID)
 
 		if err != nil {
 			slog.Error("error saving in db", "error", err)
 		}
-		//	servers = append(servers, server)
 	}
-
-	//	fmt.Println("servers", servers)
 
 	return nil
 }

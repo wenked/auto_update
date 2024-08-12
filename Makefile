@@ -16,11 +16,17 @@ run:
 
 db-stats:
 	@echo "Getting DB stats..."
-	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose status
+	@GOOSE_DRIVER=postgres GOOSE_DBSTRING=${DB_URL} goose status
 # Create DB container
-migrate:
+migrate: 
 	@echo "Migrating..."
-	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose -dir "${MIGRATION_DIR}" up
+	@GOOSE_DRIVER=postgres GOOSE_DBSTRING=${DB_URL} goose -dir "${MIGRATION_DIR}" up
+migrate-test:
+	@echo "Migrating..."
+	@GOOSE_DRIVER=sqlite3 GOOSE_DBSTRING=${TEST_DB_URL} goose -dir "${MIGRATION_DIR}" up
+delete-test-db:
+	@echo "Erasing test DB..."
+	@rm -f ${TEST_DB_URL}
 revert:
 	@echo "Reverting..."
 	@GOOSE_DRIVER=turso GOOSE_DBSTRING=${DB_URL} goose down
@@ -52,7 +58,9 @@ docker-down:
 # Test the application
 test:
 	@echo "Testing..."
+	@make migrate-test
 	@go test ./tests/...  ./internal/repositories/... -v
+	@make delete-test-db
 
 # Clean the binary
 clean:

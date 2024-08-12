@@ -1,20 +1,18 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS servers (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    host VARCHAR(255),
+    name VARCHAR(255),
+    email VARCHAR(255),
     password VARCHAR(255),
-    script TEXT,
-    pipeline_id INTEGER,
-    label VARCHAR(255),
-    active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (pipeline_id) REFERENCES pipelines (id) ON DELETE CASCADE
+    company_id INTEGER,
+    CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS servidores;
+DROP TABLE IF EXISTS users;
 -- +goose StatementEnd

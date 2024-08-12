@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -53,12 +52,6 @@ func (s *Server) CreateUserHandler(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	createUserSecret := os.Getenv("CREATE_USER_KEY")
-
-	if createUserSecret != createUser.CreateUserKey {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid create user key"})
-	}
-
 	userExists, _ := s.db.GetUserByEmail(createUser.Email)
 
 	if userExists.ID != 0 {
@@ -75,7 +68,7 @@ func (s *Server) CreateUserHandler(c echo.Context) error {
 	}
 
 	id, err := s.db.CreateUser(createUser.Name, createUser.Email, password)
-
+	fmt.Println("bolamaaax")
 	if err != nil {
 		slog.Error("error creating user", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})

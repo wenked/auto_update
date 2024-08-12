@@ -1,15 +1,16 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS notification_config (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		type TEXT,
-		name TEXT,
-		number TEXT,
-		user_id INTEGER,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-	);
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(255),
+    name VARCHAR(255),
+    number VARCHAR(255),
+    user_id INTEGER,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    url VARCHAR(255),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
 -- +goose StatementEnd
 
 -- +goose Down

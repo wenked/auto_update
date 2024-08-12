@@ -4,6 +4,9 @@ import (
 	"auto-update/internal/database/models"
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -11,25 +14,41 @@ import (
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
+	basePath, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("Failed to open in-memory SQLite database: %v", err)
+		t.Fatalf("Failed to get current working directory: %v", err)
 	}
 
-	createTableQuery := `
-        CREATE TABLE companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-    		name TEXT,
-    		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-   			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `
-	_, err = db.Exec(createTableQuery)
+	repoIndex := strings.Index(basePath, "/auto-update")
+	if repoIndex == -1 {
+		t.Fatalf("Failed to find /auto-update in the path: %v", basePath)
+	}
+
+	repoBasePath := basePath[:repoIndex+len("/auto-update")]
+
+	dbPath := filepath.Join(repoBasePath, "db_test.db")
+
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		t.Fatalf("Failed to create table: %v", err)
+		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
 
 	return db
+}
+
+func clearTestDb(db *sql.DB, t *testing.T) error {
+	_, err := db.Exec(`DELETE FROM companies;
+	DELETE FROM users;
+	DELETE FROM pipelines;
+	DELETE FROM servers;
+	DELETE FROM notification_config;
+	`)
+
+	if err != nil {
+		t.Fatalf("Error clearing DB: %v", err)
+	}
+
+	return nil
 }
 
 func TestCreateCompany(t *testing.T) {
@@ -48,6 +67,8 @@ func TestCreateCompany(t *testing.T) {
 	err = db.QueryRow("SELECT name FROM companies WHERE id = ?", id).Scan(&name)
 	assert.NoError(t, err)
 	assert.Equal(t, company.Name, name)
+	clearTestDb(db, t)
+
 }
 
 func TestUpdateCompany(t *testing.T) {
@@ -67,6 +88,9 @@ func TestUpdateCompany(t *testing.T) {
 	err = db.QueryRow("SELECT name FROM companies WHERE id = ?", id).Scan(&name)
 	assert.NoError(t, err)
 	assert.Equal(t, updatedCompany.Name, name)
+
+	clearTestDb(db, t)
+
 }
 
 func TestGetCompany(t *testing.T) {
@@ -82,6 +106,8 @@ func TestGetCompany(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, id, result.ID)
 	assert.Equal(t, company.Name, result.Name)
+	clearTestDb(db, t)
+
 }
 
 func TestListCompanies(t *testing.T) {
@@ -105,6 +131,8 @@ func TestListCompanies(t *testing.T) {
 	assert.Equal(t, 2, len(result))
 	assert.Equal(t, companies[0].Name, result[0].Name)
 	assert.Equal(t, companies[1].Name, result[1].Name)
+	clearTestDb(db, t)
+
 }
 
 func TestDeleteCompany(t *testing.T) {
@@ -124,4 +152,7 @@ func TestDeleteCompany(t *testing.T) {
 	err = db.QueryRow("SELECT COUNT(*) FROM companies WHERE id = ?", id).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
+
+	clearTestDb(db, t)
+
 }

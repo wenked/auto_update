@@ -1,11 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS updates (
+CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
-    pusher_name TEXT,
-    branch TEXT,
-    status TEXT,
-    message TEXT,
+    name VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -13,5 +10,5 @@ CREATE TABLE IF NOT EXISTS updates (
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS updates;
+DROP TABLE IF EXISTS companies;
 -- +goose StatementEnd
