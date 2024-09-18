@@ -19,12 +19,12 @@ type UpdateServer struct {
 
 func ScanUpdateServer(rows *sql.Rows) (UpdateServer, error) {
 	var n UpdateServer
-	err := rows.Scan(&n.ID, &n.Host, &n.Password, &n.Script, &n.PipelineID, &n.CreatedAt, &n.UpdatedAt, &n.Label, &n.Active)
+	err := rows.Scan(&n.ID, &n.Host, &n.Password, &n.Script, &n.PipelineID, &n.Label, &n.Active, &n.CreatedAt, &n.UpdatedAt)
 	return n, err
 }
 
 func ScanRowUpdateServer(row *sql.Row) (UpdateServer, error) {
 	var n UpdateServer
-	err := row.Scan(&n.ID, &n.Host, &n.Password, &n.Script, &n.PipelineID, &n.CreatedAt, &n.UpdatedAt, &n.Label, &n.Active)
+	err := row.Scan(&n.ID, &n.Host, &n.Password, &n.Script, &n.PipelineID, &n.Label, &n.Active, &n.CreatedAt, &n.UpdatedAt)
 	return n, err
 }
